@@ -42,59 +42,53 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Connexion - MedConnect</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div class="container mt-5">
-        <div class="row">
-            <div class="col-md-6 mx-auto">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h3 class="card-title">Connexion</h3>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8 max-w-md">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="bg-blue-600 text-white px-6 py-4">
+                <h3 class="text-xl font-semibold">Connexion</h3>
+            </div>
+            <div class="p-6">
+                <?php if (isset($message)): ?>
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                        <?php echo $message; ?>
                     </div>
-                    <div class="card-body">
-                        <?php if (isset($message)): ?>
-                            <div class="alert alert-danger">
-                                <?php echo $message; ?>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <?php if (isset($_GET['registered']) && $_GET['registered'] == 'success'): ?>
-                            <div class="alert alert-success">
-                                Inscription réussie ! Vous pouvez maintenant vous connecter.
-                            </div>
-                        <?php endif; ?>
-                        
-                        <?php if (isset($_GET['password_reset']) && $_GET['password_reset'] == 'success'): ?>
-                            <div class="alert alert-success">
-                                Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter.
-                            </div>
-                        <?php endif; ?>
-                        
-                        <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
-                            <div class="mb-3">
-                                <label for="email" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="email" name="email" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="password" class="form-label">Mot de passe</label>
-                                <input type="password" class="form-control" id="password" name="password" required>
-                            </div>
-                            <div class="mb-3">
-                                <button type="submit" class="btn btn-primary btn-block">Se connecter</button>
-                            </div>
-                        </form>
-                        <div class="text-center">
-                            <p><a href="forgot_password.php">Mot de passe oublié?</a></p>
-                            <p>Vous n'avez pas de compte? <a href="register_patient.php">Inscrivez-vous ici</a></p>
-                            <p>Vous êtes médecin? <a href="register_medecin.php">Inscrivez-vous en tant que médecin</a></p>
-                        </div>
+                <?php endif; ?>
+                
+                <?php if (isset($_GET['registered']) && $_GET['registered'] == 'success'): ?>
+                    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                        Inscription réussie ! Vous pouvez maintenant vous connecter.
                     </div>
+                <?php endif; ?>
+                
+                <?php if (isset($_GET['password_reset']) && $_GET['password_reset'] == 'success'): ?>
+                    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                        Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter.
+                    </div>
+                <?php endif; ?>
+                
+                <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
+                    <div class="mb-4">
+                        <label for="email" class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                        <input type="email" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="email" name="email" required>
+                    </div>
+                    <div class="mb-6">
+                        <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Mot de passe</label>
+                        <input type="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="password" name="password" required>
+                    </div>
+                    <div class="mb-4">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline">Se connecter</button>
+                    </div>
+                </form>
+                <div class="text-center mt-4">
+                    <p class="text-sm text-gray-600 mb-2"><a href="forgot_password.php" class="text-blue-600 hover:text-blue-800">Mot de passe oublié?</a></p>
+                    <p class="text-sm text-gray-600 mb-2">Vous n'avez pas de compte? <a href="register_patient.php" class="text-blue-600 hover:text-blue-800">Inscrivez-vous ici</a></p>
+                    <p class="text-sm text-gray-600">Vous êtes médecin? <a href="register_medecin.php" class="text-blue-600 hover:text-blue-800">Inscrivez-vous en tant que médecin</a></p>
                 </div>
             </div>
         </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html> 
