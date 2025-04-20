@@ -187,11 +187,12 @@ CREATE TABLE `profilpatient` (
 -- Structure de la table `rendezvous`
 --
 
-CREATE TABLE `rendezvous` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `dateheure` datetime DEFAULT NULL,
-  `statut` enum('en attente','accepté','refusé') DEFAULT NULL,
-  `idmedecin` int(11) NOT NULL,
-  `idpatient` int(11) NOT NULL,
-  PRIMARY KEY (`id`),
-  CONSTRAINT `rendezvous_ibfk_1` FOREIGN KEY (`idmedecin`) REFERENCES
+CREATE TABLE rendezvous (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  dateheure DATETIME,
+  statut ENUM('en attente', 'accepté', 'refusé'),
+  idmedecin INT NOT NULL,
+  idpatient INT NOT NULL,
+  FOREIGN KEY (idmedecin) REFERENCES medecin(id),
+  FOREIGN KEY (idpatient) REFERENCES patient(id)
+);
