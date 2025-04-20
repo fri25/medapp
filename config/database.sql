@@ -55,29 +55,6 @@ CREATE TABLE `carnetsante` (
 -- --------------------------------------------------------
 
 --
--- Structure de la table `consultation`
---
-
-CREATE TABLE `consultation` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `dateheure` datetime DEFAULT NULL,
-  `type` enum('chat','visio') DEFAULT NULL,
-  `compterendu` text DEFAULT NULL,
-  `idpatient` int(11) DEFAULT NULL,
-  `idmedecin` int(11) DEFAULT NULL,
-  `idprixconsultation` int(11) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idPatient` (`idpatient`),
-  KEY `idMedecin` (`idmedecin`),
-  KEY `idPrixConsultation` (`idprixconsultation`),
-  CONSTRAINT `consultation_ibfk_1` FOREIGN KEY (`idPatient`) REFERENCES `patient` (`id`),
-  CONSTRAINT `consultation_ibfk_2` FOREIGN KEY (`idMedecin`) REFERENCES `medecin` (`id`),
-  CONSTRAINT `consultation_ibfk_3` FOREIGN KEY (`idPrixConsultation`) REFERENCES `prixconsultation` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
 -- Structure de la table `hopitaux`
 --
 
@@ -196,3 +173,26 @@ CREATE TABLE rendezvous (
   FOREIGN KEY (idmedecin) REFERENCES medecin(id),
   FOREIGN KEY (idpatient) REFERENCES patient(id)
 );
+
+-- --------------------------------------------------------
+
+--
+-- Structure de la table `consultation`
+--
+
+CREATE TABLE `consultation` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `dateheure` datetime DEFAULT NULL,
+  `type` enum('chat','visio') DEFAULT NULL,
+  `compterendu` text DEFAULT NULL,
+  `idpatient` int(11) DEFAULT NULL,
+  `idmedecin` int(11) DEFAULT NULL,
+  `idprixconsultation` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idPatient` (`idpatient`),
+  KEY `idMedecin` (`idmedecin`),
+  KEY `idPrixConsultation` (`idprixconsultation`),
+  CONSTRAINT `consultation_ibfk_1` FOREIGN KEY (`idPatient`) REFERENCES `patient` (`id`),
+  CONSTRAINT `consultation_ibfk_2` FOREIGN KEY (`idMedecin`) REFERENCES `medecin` (`id`),
+  CONSTRAINT `consultation_ibfk_3` FOREIGN KEY (`idPrixConsultation`) REFERENCES `prixconsultation` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
