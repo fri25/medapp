@@ -174,6 +174,21 @@ CREATE TABLE rendezvous (
   FOREIGN KEY (idpatient) REFERENCES patient(id)
 );
 
+
+
+-- --------------------------------------------------------
+
+--
+-- Structure de la table specialite
+--
+
+CREATE TABLE specialite (
+  id int(11) NOT NULL,
+  nomspecialite varchar(100) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+
 -- --------------------------------------------------------
 
 --
