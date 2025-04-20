@@ -54,10 +54,7 @@ class Auth {
     
     // Méthode pour créer une session
     private function createSession($user_id, $nom, $prenom, $email, $role) {
-        // Démarrer la session
-        if(session_status() == PHP_SESSION_NONE) {
-            session_start();
-        }
+        // Ne plus démarrer la session ici car elle est déjà démarrée dans le fichier session.php
         
         // Utiliser la fonction initSession si disponible
         if (function_exists('initSession')) {
@@ -76,9 +73,7 @@ class Auth {
     
     // Méthode pour vérifier si l'utilisateur est connecté
     public function isLoggedIn() {
-        if(session_status() == PHP_SESSION_NONE) {
-            session_start();
-        }
+        // Ne plus démarrer la session ici car elle est déjà démarrée dans le fichier session.php
         
         // Vérifier si l'ID utilisateur existe dans la session et si la session n'a pas expiré
         if(isset($_SESSION['user_id']) && isset($_SESSION['last_activity'])) {
@@ -98,9 +93,7 @@ class Auth {
     
     // Méthode pour vérifier le rôle de l'utilisateur
     public function checkRole($required_role) {
-        if(session_status() == PHP_SESSION_NONE) {
-            session_start();
-        }
+        // Ne plus démarrer la session ici car elle est déjà démarrée dans le fichier session.php
         
         if(isset($_SESSION['role']) && $_SESSION['role'] == $required_role) {
             return true;
@@ -111,15 +104,18 @@ class Auth {
     
     // Méthode pour déconnecter l'utilisateur
     public function logout() {
-        if(session_status() == PHP_SESSION_NONE) {
-            session_start();
+        // Ne plus démarrer la session ici car elle est déjà démarrée dans le fichier session.php
+        
+        // Utiliser la fonction de déconnexion du fichier session.php si disponible
+        if (function_exists('logout')) {
+            logout();
+        } else {
+            // Fallback - Détruire toutes les variables de session
+            $_SESSION = array();
+            
+            // Détruire la session
+            session_destroy();
         }
-        
-        // Détruire toutes les variables de session
-        $_SESSION = array();
-        
-        // Détruire la session
-        session_destroy();
     }
     
     // Méthode pour initier la réinitialisation du mot de passe

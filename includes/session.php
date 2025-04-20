@@ -41,11 +41,9 @@ session_set_cookie_params([
     'samesite' => $samesite
 ]);
 
-// Définir un nom de session personnalisé
-session_name($session_name);
-
-// Démarrer la session si elle n'est pas déjà démarrée
+// Définir un nom de session personnalisé uniquement si la session n'est pas déjà active
 if (session_status() == PHP_SESSION_NONE) {
+    session_name($session_name);
     session_start();
     
     // Régénérer l'ID de session périodiquement pour prévenir la fixation de session

@@ -4,11 +4,9 @@
  * Ce script permet de vérifier si la configuration Google OAuth est correcte
  */
 
-// Démarrer la session si ce n'est pas déjà fait
-session_start();
-
 // Charger les dépendances
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/session.php';
 
 // Entête HTML
 echo '<!DOCTYPE html>

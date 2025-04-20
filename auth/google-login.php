@@ -4,11 +4,9 @@
  * Redirige l'utilisateur vers la page d'authentification Google
  */
 
-// Démarrer la session si ce n'est pas déjà fait
-session_start();
-
 // Charger les dépendances
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/session.php';
 require_once 'GoogleAuth.php';
 
 try {
