@@ -179,12 +179,25 @@ class GoogleAuth {
      * @param array $user_info Informations supplémentaires
      */
     private function setupSession($user_id, $role, $user_info) {
-        $_SESSION['user_id'] = $user_id;
-        $_SESSION['role'] = $role;
-        $_SESSION['nom'] = $user_info['family_name'];
-        $_SESSION['prenom'] = $user_info['given_name'];
-        $_SESSION['email'] = $user_info['email'];
-        $_SESSION['auth_method'] = 'google';
-        $_SESSION['last_activity'] = time();
+        // Utiliser la fonction initSession du fichier session.php
+        if (function_exists('initSession')) {
+            initSession(
+                $user_id,
+                $role,
+                $user_info['family_name'],
+                $user_info['given_name'],
+                $user_info['email'],
+                'google'
+            );
+        } else {
+            // Fallback si la fonction n'existe pas (pour compatibilité)
+            $_SESSION['user_id'] = $user_id;
+            $_SESSION['role'] = $role;
+            $_SESSION['nom'] = $user_info['family_name'];
+            $_SESSION['prenom'] = $user_info['given_name'];
+            $_SESSION['email'] = $user_info['email'];
+            $_SESSION['auth_method'] = 'google';
+            $_SESSION['last_activity'] = time();
+        }
     }
 } 

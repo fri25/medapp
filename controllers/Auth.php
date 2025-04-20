@@ -3,6 +3,7 @@ require_once '../config/database.php';
 require_once '../models/Patient.php';
 require_once '../models/Medecin.php';
 require_once '../models/Admin.php';
+require_once '../includes/session.php';
 
 class Auth {
     private $database;
@@ -29,21 +30,21 @@ class Auth {
             // Vérifier le mot de passe
             if(password_verify($password, $patient->password)) {
                 // Mot de passe correct, créer la session
-                $this->createSession($patient->id, $patient->nom, $patient->prenom, $patient->role);
+                $this->createSession($patient->id, $patient->nom, $patient->prenom, $patient->email, $patient->role);
                 return true;
             }
         } elseif($medecin->emailExists()) {
             // Vérifier le mot de passe
             if(password_verify($password, $medecin->password)) {
                 // Mot de passe correct, créer la session
-                $this->createSession($medecin->id, $medecin->nom, $medecin->prenom, $medecin->role);
+                $this->createSession($medecin->id, $medecin->nom, $medecin->prenom, $medecin->email, $medecin->role);
                 return true;
             }
         } elseif($admin->emailExists()) {
             // Vérifier le mot de passe
             if(password_verify($password, $admin->password)) {
                 // Mot de passe correct, créer la session
-                $this->createSession($admin->id, $admin->nom, $admin->prenom, $admin->role);
+                $this->createSession($admin->id, $admin->nom, $admin->prenom, $admin->email, $admin->role);
                 return true;
             }
         }
@@ -52,18 +53,25 @@ class Auth {
     }
     
     // Méthode pour créer une session
-    private function createSession($user_id, $nom, $prenom, $role) {
+    private function createSession($user_id, $nom, $prenom, $email, $role) {
         // Démarrer la session
         if(session_status() == PHP_SESSION_NONE) {
             session_start();
         }
         
-        // Stocker les informations de l'utilisateur dans la session
-        $_SESSION['user_id'] = $user_id;
-        $_SESSION['nom'] = $nom;
-        $_SESSION['prenom'] = $prenom;
-        $_SESSION['role'] = $role;
-        $_SESSION['last_activity'] = time();
+        // Utiliser la fonction initSession si disponible
+        if (function_exists('initSession')) {
+            initSession($user_id, $role, $nom, $prenom, $email, 'standard');
+        } else {
+            // Fallback - Stocker les informations de l'utilisateur dans la session
+            $_SESSION['user_id'] = $user_id;
+            $_SESSION['nom'] = $nom;
+            $_SESSION['prenom'] = $prenom;
+            $_SESSION['email'] = $email;
+            $_SESSION['role'] = $role;
+            $_SESSION['auth_method'] = 'standard';
+            $_SESSION['last_activity'] = time();
+        }
     }
     
     // Méthode pour vérifier si l'utilisateur est connecté
