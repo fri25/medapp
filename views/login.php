@@ -35,6 +35,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $message = "Email ou mot de passe incorrect. Veuillez réessayer.";
     }
 }
+
+// Vérifier si une erreur d'authentification Google est présente dans la session
+session_start();
+if (isset($_SESSION['auth_error'])) {
+    $message = $_SESSION['auth_error'];
+    unset($_SESSION['auth_error']);
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -43,6 +50,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Connexion - MedConnect</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .btn-google {
+            background-color: #ffffff;
+            color: #757575;
+            border: 1px solid #dddddd;
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            font-weight: 600;
+            border-radius: 0.25rem;
+            margin-top: 1rem;
+            transition: background-color 0.3s;
+        }
+        .btn-google:hover {
+            background-color: #f8f9fa;
+        }
+        .btn-google i {
+            color: #4285F4;
+            margin-right: 0.5rem;
+            font-size: 1.25rem;
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8 max-w-md">
@@ -82,6 +114,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline">Se connecter</button>
                     </div>
                 </form>
+                
+                <div class="flex items-center my-4">
+                    <hr class="flex-grow border-t border-gray-300">
+                    <span class="mx-4 text-gray-500 text-sm">OU</span>
+                    <hr class="flex-grow border-t border-gray-300">
+                </div>
+                
+                <a href="../auth/google-login.php" class="btn-google">
+                    <i class="fab fa-google"></i> Se connecter avec Google
+                </a>
+                
                 <div class="text-center mt-4">
                     <p class="text-sm text-gray-600 mb-2"><a href="forgot_password.php" class="text-blue-600 hover:text-blue-800">Mot de passe oublié?</a></p>
                     <p class="text-sm text-gray-600 mb-2">Vous n'avez pas de compte? <a href="register_patient.php" class="text-blue-600 hover:text-blue-800">Inscrivez-vous ici</a></p>
