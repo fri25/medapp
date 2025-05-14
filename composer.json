@@ -5,8 +5,9 @@
     "require": {
         "php": ">=7.4",
         "vlucas/phpdotenv": "^5.5",
-        "google/apiclient": "^2.15",
-        "phpmailer/phpmailer": "^6.8"
+        "google/apiclient": "^2.18",
+        "phpmailer/phpmailer": "^6.8",
+        "tecnickcom/tcpdf": "^6.6"
     },
     "autoload": {
         "psr-4": {
@@ -22,4 +23,4 @@
         }
     ],
     "minimum-stability": "stable"
-} 
+}

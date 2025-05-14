@@ -7,9 +7,6 @@ if (session_status() == PHP_SESSION_NONE) {
     // session_start();
 }
 
-
-
-
 // Inclusion des fichiers nécessaires
 require_once '../config/database.php';
 require_once '../models/Patient.php';
@@ -47,7 +44,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 header("Location: medecin/dashboard.php");
                 break;
             case 'patient':
-                header("Location: patient/dashboard.php");
+                header("Location:   patient/dashboard.php");
                 break;
             default:
                 header("Location: index.php");
@@ -84,7 +81,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             box-shadow: 0 8px 24px rgba(149, 157, 165, 0.1);
         }
         .form-header {
-            background-color: #3b82f6;
+            background-color: #22c55e;
             color: white;
             height: 80px;
             margin: -2rem -2rem 0;
@@ -106,7 +103,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         .form-avatar i {
-            color: #3b82f6;
+            color: #22c55e;
             font-size: 1.75rem;
         }
         .form-input-group {
@@ -118,8 +115,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             transition: all 0.2s;
         }
         .form-input-group:focus-within {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+            border-color: #22c55e;
+            box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
         }
         .form-input-icon-wrapper {
             display: flex;
@@ -140,7 +137,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             width: 100%;
         }
         .submit-btn {
-            background-color: #3b82f6;
+            background-color: #22c55e;
             color: white;
             border: none;
             border-radius: 0.5rem;
@@ -154,7 +151,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             transition: background-color 0.2s;
         }
         .submit-btn:hover {
-            background-color: #2563eb;
+            background-color: #16a34a;
         }
         .google-btn {
             background-color: white;
@@ -193,12 +190,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             font-size: 0.875rem;
         }
         .link {
-            color: #3b82f6;
+            color: #22c55e;
             text-decoration: none;
             transition: color 0.2s;
         }
         .link:hover {
-            color: #2563eb;
+            color: #16a34a;
             text-decoration: underline;
         }
         .link-secondary {
@@ -234,8 +231,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <div class="container mx-auto px-4">
             <!-- Introduction -->
             <div class="text-center mb-10">
-                <h1 class="text-3xl font-bold text-blue-800 mb-3">Bienvenue sur MedConnect</h1>
-                <p class="text-gray-600 max-w-2xl mx-auto">Connectez-vous pour accéder à votre espace médical personnel</p>
+                <h1 class="text-3xl font-bold text-[#166534] mb-3">Bienvenue sur MedConnect</h1>
+                <p class="text-[#166534] max-w-2xl mx-auto">Connectez-vous pour accéder à votre espace médical personnel</p>
             </div>
             
             <div class="form-container">

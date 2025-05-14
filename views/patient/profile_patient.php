@@ -11,7 +11,7 @@ $error = "";
 // Pré-remplissage des données
 $stmt =  db()->prepare("
     SELECT 
-        p.nom, p.prenom, p.datenais, p.email, p.contact,
+        p.nom, p.prenom, p.datenais, p.email, p.contact, p.sexe,
         pr.adresse, pr.profession,
         cs.groupesanguin, cs.taille, cs.poids, cs.allergie, cs.electrophorese,
         pr.id AS profil_id, cs.id AS carnet_id
@@ -29,6 +29,7 @@ $prenom = $data['prenom'] ?? '';
 $email = $data['email'] ?? '';
 $contact = $data['contact'] ?? '';
 $datenais = $data['datenais'] ?? '';
+$sexe = $data['sexe'] ?? '';
 $adresse = $data['adresse'] ?? '';
 $profession = $data['profession'] ?? '';
 $groupesanguin = $data['groupesanguin'] ?? '';
@@ -46,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $datenais = $_POST['datenais'];
     $email = $_POST['email'];
     $contact = $_POST['telephone'];
+    $sexe = $_POST['sexe'];
     $adresse = $_POST['adresse'];
     $profession = $_POST['profession'];
 
@@ -56,17 +58,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $electrophorese = $_POST['electrophorese'];
 
     // MAJ patient
-    $stmt =  db()->prepare("UPDATE patient SET nom = ?, prenom = ?, datenais = ?, email = ?, contact = ? WHERE id = ?");
-    $stmt->execute([$nom, $prenom, $datenais, $email, $contact, $user_id]);
+    $stmt =  db()->prepare("UPDATE patient SET nom = ?, prenom = ?, datenais = ?, email = ?, contact = ?, sexe = ? WHERE id = ?");
+    $stmt->execute([$nom, $prenom, $datenais, $email, $contact, $sexe, $user_id]);
 
     // MAJ ou insertion profilpatient
     if ($profil_id) {
         $stmt =  db()->prepare("UPDATE profilpatient SET adresse = ?, profession = ? WHERE id = ?");
         $stmt->execute([$adresse, $profession, $profil_id]);
     } else {
-         db()->prepare("INSERT INTO carnetsante (groupesanguin, taille, poids, allergie, electrophorese) VALUES ('', '', '', '', '')")->execute();
-        $new_carnet_id =  db()->lastInsertId();
-        $stmt =  db()->prepare("INSERT INTO profilpatient (adresse, profession, idpatient, idcarnetsante) VALUES (?, ?, ?, ?)");
+        // D'abord insérer dans carnetsante avec l'id_patient
+        $stmt = db()->prepare("INSERT INTO carnetsante (id_patient, groupesanguin, taille, poids, allergie, electrophorese) VALUES (?, '', '', '', '', '')");
+        $stmt->execute([$user_id]);
+        $new_carnet_id = db()->lastInsertId();
+        
+        // Ensuite insérer dans profilpatient
+        $stmt = db()->prepare("INSERT INTO profilpatient (adresse, profession, idpatient, idcarnetsante) VALUES (?, ?, ?, ?)");
         $stmt->execute([$adresse, $profession, $user_id, $new_carnet_id]);
     }
 
@@ -145,10 +151,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <a href="rdv.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
                     <i class="fas fa-calendar-alt mr-3"></i>Mes Rendez-vous
                 </a>
-                <a href="ordonnance.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
+                <a href="ordonnace.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
                     <i class="fas fa-prescription mr-3"></i>Mes Ordonnances
                 </a>
-                <a href="pharmacie.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
+                <a href="listes_pharmacie.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
                     <i class="fas fa-pills mr-3"></i>Ma Pharmacie
                 </a>
                 <a href="messages.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
@@ -159,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </a>
             </nav>
             <div class="mt-6">
-                <a href="../logout.php" class="block bg-[#FF5252] hover:bg-[#D32F2F] text-white text-center px-4 py-3 rounded-lg transition-colors duration-300">
+                <a href="./../logout.php" class="block bg-[#FF5252] hover:bg-[#D32F2F] text-white text-center px-4 py-3 rounded-lg transition-colors duration-300">
                     <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
                 </a>
             </div>
@@ -245,6 +251,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label class="block text-sm font-medium text-[#1e40af]">Date de naissance</label>
                             <input type="date" name="datenais" value="<?= htmlspecialchars($datenais) ?>" 
                                    class="form-input w-full border border-gray-200 rounded-lg px-4 py-2 focus:outline-none">
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-[#1e40af]">Sexe</label>
+                            <select name="sexe" class="form-input w-full border border-gray-200 rounded-lg px-4 py-2 focus:outline-none">
+                                <option value="">Sélectionnez</option>
+                                <option value="M" <?= $sexe === 'M' ? 'selected' : '' ?>>Masculin</option>
+                                <option value="F" <?= $sexe === 'F' ? 'selected' : '' ?>>Féminin</option>
+                                <option value="A" <?= $sexe === 'A' ? 'selected' : '' ?>>Autre</option>
+                            </select>
                         </div>
 
                         <div class="col-span-2 space-y-2">

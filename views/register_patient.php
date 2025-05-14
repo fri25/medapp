@@ -22,6 +22,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $patient->datenais = $_POST['datenais'];
     $patient->email = $_POST['email'];
     $patient->contact = $_POST['contact'];
+    $patient->sexe = $_POST['sexe'];
     $patient->password = $_POST['password'];
     
     // Vérifier si l'email existe déjà
@@ -293,6 +294,21 @@ if (isLoggedIn()) {
                                 <input type="date" class="form-input" id="datenais" name="datenais" 
                                        max="<?php echo date('Y-m-d', strtotime('-15 years')); ?>" 
                                        required>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="sexe" class="block text-gray-700 text-sm font-medium mb-2">Sexe</label>
+                            <div class="form-input-group">
+                                <div class="form-input-icon-wrapper">
+                                    <i class="fas fa-venus-mars"></i>
+                                </div>
+                                <select class="form-input" id="sexe" name="sexe" required>
+                                    <option value="">Sélectionnez</option>
+                                    <option value="M">Masculin</option>
+                                    <option value="F">Féminin</option>
+                                    <option value="A">Autre</option>
+                                </select>
                             </div>
                         </div>
 

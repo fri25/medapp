@@ -14,8 +14,7 @@ try {
         SELECT DISTINCT 
             p.*
         FROM patient p
-        LEFT JOIN rendezvous r ON p.id = r.idpatient
-        WHERE r.idmedecin = ?
+        WHERE p.id_medecin = ?
         ORDER BY p.nom, p.prenom
     ");
     
@@ -119,15 +118,26 @@ try {
                             <input type="text" placeholder="Rechercher un patient..." class="pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
                             <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
                         </div>
-                        <a href="nouveau_patient.php" class="btn-primary">
-                            <i class="fas fa-plus-circle mr-2"></i>Nouveau patient
-                        </a>
                     </div>
                 </div>
             </header>
 
             <!-- Contenu principal -->
             <main class="container mx-auto px-4 py-8">
+                <?php if (isset($_SESSION['success'])): ?>
+                    <div class="bg-[#EFF6FF] border-l-4 border-[#3b82f6] text-[#1e40af] p-4 mb-4 rounded-lg" role="alert">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-check-circle text-[#3b82f6]"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium"><?php echo $_SESSION['success']; ?></p>
+                            </div>
+                        </div>
+                    </div>
+                    <?php unset($_SESSION['success']); ?>
+                <?php endif; ?>
+
                 <?php if (isset($message)): ?>
                     <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded-lg" role="alert">
                         <p><?php echo htmlspecialchars($message); ?></p>

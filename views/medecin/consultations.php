@@ -1,16 +1,57 @@
 <?php
 require_once '../../includes/session.php';
+require_once '../../config/config.php';
 
-// Vérifier si l'utilisateur est connecté
+// Vérifier si l'utilisateur est connecté et est un médecin
 requireLogin();
-
-// Vérifier si l'utilisateur a le rôle requis
 requireRole('medecin');
 
-// Accès aux informations de l'utilisateur connecté
 $user_id = $_SESSION['user_id'];
 $nom = $_SESSION['nom'];
 $prenom = $_SESSION['prenom'];
+
+// Récupérer la liste des patients du médecin
+try {
+    $stmt = db()->prepare("
+        SELECT DISTINCT p.id, p.nom, p.prenom
+        FROM patient p
+        WHERE p.id_medecin = ?
+        ORDER BY p.nom, p.prenom
+    ");
+    $stmt->execute([$user_id]);
+    $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $error = "Erreur lors de la récupération des patients.";
+    error_log($e->getMessage());
+    $patients = [];
+}
+
+// Récupérer les consultations
+try {
+    $query = "
+        SELECT c.*, p.nom as patient_nom, p.prenom as patient_prenom
+        FROM consultation c
+        JOIN patient p ON c.id_patient = p.id
+        WHERE c.id_medecin = ?
+    ";
+    $params = [$user_id];
+
+    // Si un patient est sélectionné, ajouter le filtre
+    if (isset($_GET['patient_id']) && !empty($_GET['patient_id'])) {
+        $query .= " AND c.id_patient = ?";
+        $params[] = $_GET['patient_id'];
+    }
+
+    $query .= " ORDER BY c.date_consultation DESC";
+    
+    $stmt = db()->prepare($query);
+    $stmt->execute($params);
+    $consultations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $error = "Erreur lors de la récupération des consultations.";
+    error_log($e->getMessage());
+    $consultations = [];
+}
 ?>
 
 <!DOCTYPE html>
@@ -64,6 +105,10 @@ $prenom = $_SESSION['prenom'];
         .filter-btn.active {
             background-color: #2E7D32;
             color: white;
+        }
+        
+        .consultation-row:hover {
+            background-color: #f8fafc;
         }
     </style>
 </head>
@@ -132,150 +177,100 @@ $prenom = $_SESSION['prenom'];
                         <h2 class="text-2xl font-bold text-[#1B5E20]">Consultations</h2>
                         <p class="text-[#558B2F]">Gérez vos consultations et suivez vos patients</p>
                     </div>
-                    <button class="btn-primary">
-                        <i class="fas fa-plus-circle mr-2"></i>Nouvelle consultation
-                    </button>
+                    <a href="nouvelle_consultation.php" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-300">
+                        <i class="fas fa-plus mr-2"></i>Nouvelle Consultation
+                    </a>
                 </div>
 
-                <!-- Filtres -->
-                <div class="bg-white rounded-xl shadow-lg p-6 mb-8 glass-effect">
-                    <div class="flex flex-wrap gap-4">
-                        <button class="filter-btn active px-4 py-2 rounded-lg bg-[#E8F5E9] text-[#1B5E20]">
-                            <i class="fas fa-calendar-check mr-2"></i>Toutes
-                        </button>
-                        <button class="filter-btn px-4 py-2 rounded-lg bg-[#E8F5E9] text-[#1B5E20]">
-                            <i class="fas fa-clock mr-2"></i>À venir
-                        </button>
-                        <button class="filter-btn px-4 py-2 rounded-lg bg-[#E8F5E9] text-[#1B5E20]">
-                            <i class="fas fa-check-circle mr-2"></i>Terminées
-                        </button>
-                        <button class="filter-btn px-4 py-2 rounded-lg bg-[#E8F5E9] text-[#1B5E20]">
-                            <i class="fas fa-times-circle mr-2"></i>Annulées
-                        </button>
+                <?php if (isset($error)): ?>
+                    <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6">
+                        <i class="fas fa-exclamation-circle mr-2"></i><?php echo $error; ?>
                     </div>
+                <?php endif; ?>
+
+                <!-- Filtre par patient -->
+                <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+                    <form method="GET" class="flex items-center space-x-4">
+                        <div class="flex-1">
+                            <label for="patient_id" class="block text-sm font-medium text-gray-700 mb-2">Filtrer par patient</label>
+                            <select name="patient_id" id="patient_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2E7D32] focus:border-transparent">
+                                <option value="">Tous les patients</option>
+                                <?php foreach ($patients as $patient): ?>
+                                    <option value="<?php echo $patient['id']; ?>" <?php echo (isset($_GET['patient_id']) && $_GET['patient_id'] == $patient['id']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($patient['prenom'] . ' ' . $patient['nom']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button type="submit" class="bg-[#2E7D32] hover:bg-[#1B5E20] text-white px-4 py-2 rounded-lg transition-colors duration-300">
+                                <i class="fas fa-filter mr-2"></i>Filtrer
+                            </button>
+                            <?php if (isset($_GET['patient_id']) && !empty($_GET['patient_id'])): ?>
+                                <a href="consultations.php" class="ml-2 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors duration-300">
+                                    <i class="fas fa-times mr-2"></i>Effacer
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </form>
                 </div>
 
-                <!-- Liste des consultations -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <!-- Consultation 1 -->
-                    <div class="consultation-card bg-white rounded-xl shadow-lg p-6 glass-effect">
-                        <div class="flex justify-between items-start mb-4">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#2E7D32] to-[#81C784] flex items-center justify-center">
-                                    <i class="fas fa-user text-white"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-semibold text-[#1B5E20]">Marie Martin</h3>
-                                    <p class="text-sm text-[#558B2F]">Consultation générale</p>
-                                </div>
-                            </div>
-                            <span class="status-badge status-scheduled">
-                                <i class="fas fa-clock mr-1"></i>Planifiée
-                            </span>
-                        </div>
-                        <div class="space-y-3">
-                            <div class="flex items-center text-[#558B2F]">
-                                <i class="fas fa-calendar-alt w-6"></i>
-                                <span>15 Mars 2024 - 14:30</span>
-                            </div>
-                            <div class="flex items-center text-[#558B2F]">
-                                <i class="fas fa-clock w-6"></i>
-                                <span>30 minutes</span>
-                            </div>
-                            <div class="flex items-center text-[#558B2F]">
-                                <i class="fas fa-comment-medical w-6"></i>
-                                <span>Suivi de traitement</span>
-                            </div>
-                        </div>
-                        <div class="mt-4 flex justify-end space-x-2">
-                            <button class="btn-secondary">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-primary">
-                                <i class="fas fa-file-medical mr-2"></i>Dossier
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Consultation 2 -->
-                    <div class="consultation-card bg-white rounded-xl shadow-lg p-6 glass-effect">
-                        <div class="flex justify-between items-start mb-4">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#2E7D32] to-[#81C784] flex items-center justify-center">
-                                    <i class="fas fa-user text-white"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-semibold text-[#1B5E20]">Jean Dupont</h3>
-                                    <p class="text-sm text-[#558B2F]">Consultation spécialisée</p>
-                                </div>
-                            </div>
-                            <span class="status-badge status-completed">
-                                <i class="fas fa-check-circle mr-1"></i>Terminée
-                            </span>
-                        </div>
-                        <div class="space-y-3">
-                            <div class="flex items-center text-[#558B2F]">
-                                <i class="fas fa-calendar-alt w-6"></i>
-                                <span>14 Mars 2024 - 10:00</span>
-                            </div>
-                            <div class="flex items-center text-[#558B2F]">
-                                <i class="fas fa-clock w-6"></i>
-                                <span>45 minutes</span>
-                            </div>
-                            <div class="flex items-center text-[#558B2F]">
-                                <i class="fas fa-comment-medical w-6"></i>
-                                <span>Bilan de santé</span>
-                            </div>
-                        </div>
-                        <div class="mt-4 flex justify-end space-x-2">
-                            <button class="btn-secondary">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-primary">
-                                <i class="fas fa-file-medical mr-2"></i>Dossier
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Consultation 3 -->
-                    <div class="consultation-card bg-white rounded-xl shadow-lg p-6 glass-effect">
-                        <div class="flex justify-between items-start mb-4">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#2E7D32] to-[#81C784] flex items-center justify-center">
-                                    <i class="fas fa-user text-white"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-semibold text-[#1B5E20]">Sophie Bernard</h3>
-                                    <p class="text-sm text-[#558B2F]">Consultation urgente</p>
-                                </div>
-                            </div>
-                            <span class="status-badge status-cancelled">
-                                <i class="fas fa-times-circle mr-1"></i>Annulée
-                            </span>
-                        </div>
-                        <div class="space-y-3">
-                            <div class="flex items-center text-[#558B2F]">
-                                <i class="fas fa-calendar-alt w-6"></i>
-                                <span>13 Mars 2024 - 16:00</span>
-                            </div>
-                            <div class="flex items-center text-[#558B2F]">
-                                <i class="fas fa-clock w-6"></i>
-                                <span>30 minutes</span>
-                            </div>
-                            <div class="flex items-center text-[#558B2F]">
-                                <i class="fas fa-comment-medical w-6"></i>
-                                <span>Urgence</span>
-                            </div>
-                        </div>
-                        <div class="mt-4 flex justify-end space-x-2">
-                            <button class="btn-secondary">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-primary">
-                                <i class="fas fa-file-medical mr-2"></i>Dossier
-                            </button>
-                        </div>
-                    </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motif</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Diagnostic</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Traitement</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            <?php if (empty($consultations)): ?>
+                                <tr>
+                                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                                        Aucune consultation enregistrée
+                                    </td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($consultations as $consultation): ?>
+                                    <tr class="consultation-row">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            <?php echo date('d/m/Y H:i', strtotime($consultation['date_consultation'])); ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            <?php echo htmlspecialchars($consultation['patient_prenom'] . ' ' . $consultation['patient_nom']); ?>
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">
+                                            <?php echo htmlspecialchars($consultation['motif']); ?>
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">
+                                            <?php echo htmlspecialchars($consultation['diagnostic'] ?? 'Non spécifié'); ?>
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">
+                                            <?php echo htmlspecialchars($consultation['traitement'] ?? 'Non spécifié'); ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <a href="voir_consultation.php?id=<?php echo $consultation['id']; ?>" 
+                                               class="text-blue-500 hover:text-blue-700 mr-3">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="modifier_consultation.php?id=<?php echo $consultation['id']; ?>" 
+                                               class="text-yellow-500 hover:text-yellow-700 mr-3">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="imprimer_consultation.php?id=<?php echo $consultation['id']; ?>" 
+                                               class="text-green-500 hover:text-green-700">
+                                                <i class="fas fa-print"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
                 </div>
             </main>
         </div>
@@ -290,6 +285,11 @@ $prenom = $_SESSION['prenom'];
                 });
                 button.classList.add('active');
             });
+        });
+
+        // Auto-submit du formulaire de filtre quand un patient est sélectionné
+        document.getElementById('patient_id').addEventListener('change', function() {
+            this.form.submit();
         });
     </script>
 </body>

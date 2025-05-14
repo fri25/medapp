@@ -4,7 +4,41 @@ $isLoggedIn = isset($_SESSION['user_id']);
 $userRole = $_SESSION['role'] ?? '';
 ?>
 
-<header class="glass-effect sticky top-0 z-50">
+<style>
+    /* Style du bouton primaire */
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, #2E7D32, #81C784); /* Dégradé vert moderne */
+    color: white;
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: 50px; /* Bouton avec bords arrondis */
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease-in-out; /* Transition fluide */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Ombre légère */
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #4CAF50, #388E3C); /* Dégradé plus foncé au survol */
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15); /* Ombre plus marquée au survol */
+    transform: translateY(-4px); /* Effet de surélévation */
+}
+
+.btn-primary i {
+    font-size: 1.2rem; /* L'icône est légèrement agrandie pour plus d'impact */
+    transition: transform 0.3s ease; /* Transition pour l'icône */
+}
+
+.btn-primary:hover i {
+    transform: translateX(5px); /* L'icône bouge légèrement lors du survol */
+}
+
+</style>
+
+<header class="bg-white bg-opacity-20 backdrop-blur-lg sticky top-0 z-50">
     <nav class="container mx-auto px-4 py-4">
         <div class="flex justify-between items-center">
             <!-- Logo -->
@@ -12,7 +46,7 @@ $userRole = $_SESSION['role'] ?? '';
                 <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#2E7D32] to-[#81C784] flex items-center justify-center">
                     <i class="fas fa-heartbeat text-white text-xl"></i>
                 </div>
-                <span class="text-xl font-bold text-[#1B5E20]">MedConnect</span>
+                <span class="text-2xl font-semibold text-[#1B5E20]">MedConnect</span>
             </a>
 
             <!-- Navigation principale -->
@@ -31,7 +65,7 @@ $userRole = $_SESSION['role'] ?? '';
                 </a>
             </div>
 
-            <!-- Boutons de connexion/inscription -->
+            <!-- Boutons de connexion -->
             <div class="hidden md:flex items-center space-x-4">
                 <?php if ($isLoggedIn): ?>
                     <div class="relative group">
@@ -59,18 +93,16 @@ $userRole = $_SESSION['role'] ?? '';
                                 </a>
                             <?php endif; ?>
                             <div class="border-t border-gray-200 my-2"></div>
-                            <a href="/medapp/logout.php" class="block px-4 py-2 text-red-600 hover:bg-red-50">
+                            <a href="/medapp/views/logout.php" class="block px-4 py-2 text-red-600 hover:bg-red-50">
                                 <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
                             </a>
                         </div>
                     </div>
                 <?php else: ?>
-                    <a href="/medapp/views/login.php" class="btn-secondary">
-                        <i class="fas fa-sign-in-alt mr-2"></i>Connexion
-                    </a>
-                    <a href="/medapp/views/register_patient.php" class="btn-primary">
-                        <i class="fas fa-user-plus mr-2"></i>Inscription
-                    </a>
+                <a href="/medapp/views/login.php" class="btn-primary">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Connexion
+                </a>
+
                 <?php endif; ?>
             </div>
 
@@ -100,9 +132,6 @@ $userRole = $_SESSION['role'] ?? '';
                         <a href="/medapp/views/login.php" class="block w-full text-center px-3 py-2 rounded-md bg-[#2E7D32] text-white hover:bg-[#1B5E20]">
                             <i class="fas fa-sign-in-alt mr-2"></i>Connexion
                         </a>
-                        <a href="/medapp/views/register_patient.php" class="block w-full text-center px-3 py-2 rounded-md border-2 border-[#2E7D32] text-[#2E7D32] hover:bg-[#2E7D32] hover:text-white">
-                            <i class="fas fa-user-plus mr-2"></i>Inscription
-                        </a>
                     </div>
                 <?php endif; ?>
             </div>
@@ -115,5 +144,7 @@ $userRole = $_SESSION['role'] ?? '';
     document.getElementById('mobile-menu-button').addEventListener('click', function() {
         const mobileMenu = document.getElementById('mobile-menu');
         mobileMenu.classList.toggle('hidden');
+        mobileMenu.classList.toggle('transform'); // Ajout d'une transition
     });
-</script> 
+</script>
+

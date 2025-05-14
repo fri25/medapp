@@ -37,7 +37,7 @@ if (file_exists($envFile)) {
         }
     }
     
-    // Vérifier la présence des variables requises
+    // vérification des variables requises
     $requiredVars = ['DB_HOST', 'DB_NAME', 'DB_USER'];
     $missingVars = [];
     
@@ -45,6 +45,11 @@ if (file_exists($envFile)) {
         if (!isset($_ENV[$var]) || empty($_ENV[$var])) {
             $missingVars[] = $var;
         }
+    }
+    
+    // Vérification spéciale pour DB_PASS
+    if (!isset($_ENV['DB_PASS'])) {
+        $missingVars[] = 'DB_PASS';
     }
     
     if (!empty($missingVars)) {
@@ -59,6 +64,7 @@ if (file_exists($envFile)) {
         }
     }
 } else {
+    
     die('Le fichier .env est introuvable. Veuillez créer ce fichier à la racine du projet.');
 }
 
@@ -70,7 +76,12 @@ if (file_exists($envFile)) {
  * @return mixed Valeur de la variable d'environnement
  */
 function env($key, $default = null) {
-    return isset($_ENV[$key]) ? $_ENV[$key] : $default;
+    // Charge les variables d'environnement à partir du fichier .env
+    $value = getenv($key);
+    if ($value === false && isset($_ENV[$key])) {
+        $value = $_ENV[$key];
+    }
+    return $value !== false ? $value : $default;
 }
 
 // Afficher un message de debug
@@ -78,3 +89,6 @@ if (isset($_ENV['APP_ENV']) && $_ENV['APP_ENV'] === 'development') {
     echo "<!-- Variables d'environnement chargées manuellement -->";
 }
 ?> 
+
+
+

@@ -2,17 +2,37 @@
 require_once 'User.php';
 
 class Medecin extends User {
+    protected $idspecialite;
+    protected $num;
+    
     public function __construct($db) {
         parent::__construct($db);
         $this->table_name = "medecin";
         $this->role = "medecin";
     }
     
+    // Getters et Setters
+    public function getIdSpecialite() {
+        return $this->idspecialite;
+    }
+
+    public function setIdSpecialite($idspecialite) {
+        $this->idspecialite = $idspecialite;
+    }
+
+    public function getNum() {
+        return $this->num;
+    }
+
+    public function setNum($num) {
+        $this->num = $num;
+    }
+    
     // Implémentation de la méthode register pour les médecins
     public function register() {
         $query = "INSERT INTO " . $this->table_name . " 
-                  (nom, prenom, datenais, email, contact, password, role) 
-                  VALUES (?, ?, ?, ?, ?, ?, ?)";
+                  (nom, prenom, datenais, email, contact, password, role, idspecialite, num) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $stmt = $this->db->prepare($query);
         
@@ -33,6 +53,8 @@ class Medecin extends User {
         $stmt->bindParam(5, $this->contact);
         $stmt->bindParam(6, $hashed_password);
         $stmt->bindParam(7, $this->role);
+        $stmt->bindParam(8, $this->idspecialite);
+        $stmt->bindParam(9, $this->num);
         
         if($stmt->execute()) {
             return true;

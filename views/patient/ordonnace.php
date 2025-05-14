@@ -1,3 +1,53 @@
+<?php
+// Charger la configuration de session
+require_once __DIR__ . '/../../includes/session.php';
+
+// Vérifier l'authentification et l'autorisation
+requireLogin();
+requireRole('patient');
+
+// Initialisation des messages
+$success = "";
+$error = "";
+
+$user_id = $_SESSION['user_id'];
+
+// Définir le chemin racine
+$root_path = __DIR__ . '/../../';
+
+require_once $root_path . 'config/database.php';
+
+// Requête pour récupérer les ordonnances du patient avec infos médecin
+$sql = "SELECT o.*, m.nom AS nom_medecin, m.prenom AS prenom_medecin
+        FROM ordonnance o
+        JOIN medecin m ON o.idmedecin = m.id
+        WHERE o.idpatient = :idpatient
+        ORDER BY o.date_creation DESC";
+
+$stmt = db()->prepare($sql);
+$stmt->execute(['idpatient' => $user_id]);
+$ordonnances = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Calculer les statistiques des ordonnances
+$ordonnances_actives = array_filter($ordonnances, function($ord) {
+    return $ord['statut'] === 'active';
+});
+
+$ordonnances_a_renouveler = 0;
+
+foreach ($ordonnances as $ord) {
+    if ($ord['statut'] === 'à renouveler') {
+        $ordonnances_a_renouveler++;
+    }
+}
+
+// Pour l'affichage, on définit un nombre de médicaments par défaut
+foreach ($ordonnances as &$ord) {
+    $medicaments = explode("\n", $ord['medicaments']);
+    $ord['nombre_medicaments'] = count($medicaments);
+}
+unset($ord); // Important pour éviter des effets de bord
+?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -75,13 +125,13 @@
                 <a href="profile_patient.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
                     <i class="fas fa-user mr-3"></i>Mon Profil
                 </a>
-        </nav>
-        <div class="mt-6">
-                <a href="../logout.php" class="block bg-[#FF5252] hover:bg-[#D32F2F] text-white text-center px-4 py-3 rounded-lg transition-colors duration-300">
+            </nav>
+            <div class="mt-6">
+                <a href="./../logout.php" class="block bg-[#FF5252] hover:bg-[#D32F2F] text-white text-center px-4 py-3 rounded-lg transition-colors duration-300">
                     <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
-            </a>
-        </div>
-    </aside>
+                </a>
+            </div>
+        </aside>
 
         <!-- Contenu principal -->
         <div class="flex-1">
@@ -108,7 +158,7 @@
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-[#3b82f6]">Ordonnances actives</p>
-                                <h3 class="text-2xl font-bold text-[#1e40af]">3</h3>
+                                <h3 class="text-2xl font-bold text-[#1e40af]"><?php echo count($ordonnances_actives); ?></h3>
                             </div>
                             <div class="w-12 h-12 rounded-full bg-[#EFF6FF] flex items-center justify-center">
                                 <i class="fas fa-prescription text-xl text-[#3b82f6]"></i>
@@ -119,7 +169,7 @@
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-[#10b981]">Médicaments en cours</p>
-                                <h3 class="text-2xl font-bold text-[#1e40af]">5</h3>
+                                <h3 class="text-2xl font-bold text-[#1e40af]"><?php echo count($ordonnances); ?></h3>
                             </div>
                             <div class="w-12 h-12 rounded-full bg-[#ECFDF5] flex items-center justify-center">
                                 <i class="fas fa-pills text-xl text-[#10b981]"></i>
@@ -130,7 +180,7 @@
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-[#f59e0b]">À renouveler</p>
-                                <h3 class="text-2xl font-bold text-[#1e40af]">2</h3>
+                                <h3 class="text-2xl font-bold text-[#1e40af]"><?php echo $ordonnances_a_renouveler; ?></h3>
                             </div>
                             <div class="w-12 h-12 rounded-full bg-[#FFFBEB] flex items-center justify-center">
                                 <i class="fas fa-clock text-xl text-[#f59e0b]"></i>
@@ -146,67 +196,76 @@
                             <i class="fas fa-prescription mr-2"></i>
                             Mes dernières ordonnances
                         </h2>
-                        <div class="flex gap-4">
-                            <div class="relative">
-                                <input type="text" 
-                                       placeholder="Rechercher..." 
-                                       class="search-input border border-gray-200 rounded-lg px-4 py-2 pl-10 focus:outline-none">
-                                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-[#3b82f6]"></i>
-                            </div>
-                            <button class="bg-[#3b82f6] hover:bg-[#2563eb] text-white px-4 py-2 rounded-lg transition-colors duration-300 flex items-center gap-2">
-                                <i class="fas fa-filter"></i>
-                                Filtrer
-                            </button>
-                        </div>
                     </div>
 
-                    <div class="space-y-4">
-                        <!-- Exemple d'ordonnance -->
-                        <div class="prescription-card bg-[#F8FAFC] rounded-lg p-4 hover:bg-[#F1F5F9]">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center space-x-4">
-                                    <div class="w-12 h-12 rounded-full bg-[#DBEAFE] flex items-center justify-center">
-                                        <i class="fas fa-user-md text-[#3b82f6] text-xl"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="font-medium text-[#1e40af]">Dr. Martin</h3>
-                                        <p class="text-sm text-[#3b82f6]">15 Mars 2024</p>
-                                    </div>
+                    <?php foreach ($ordonnances as $ordonnance): ?>
+                        <div class="prescription-card bg-white rounded-lg shadow-md p-6 mb-6 border border-gray-100">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-[#1e40af]">
+                                        Ordonnance du <?php echo date('d/m/Y', strtotime($ordonnance['date_creation'])); ?>
+                                    </h3>
+                                    <p class="text-sm text-gray-600">
+                                        Dr. <?php echo htmlspecialchars($ordonnance['prenom_medecin'] . ' ' . $ordonnance['nom_medecin']); ?>
+                                    </p>
                                 </div>
-                                <div class="flex items-center gap-4">
-                                    <span class="px-3 py-1 bg-[#DCFCE7] text-[#10b981] rounded-full text-sm">
-                                        Active
+                                <div class="flex items-center space-x-2">
+                                    <span class="px-3 py-1 rounded-full text-sm <?php echo $ordonnance['statut'] === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'; ?>">
+                                        <?php echo ucfirst($ordonnance['statut']); ?>
                                     </span>
-                                    <button class="text-[#3b82f6] hover:text-[#2563eb]">
-                                        <i class="fas fa-download"></i>
-                                    </button>
+                                    <a href="telecharger_ordonnance.php?id=<?php echo $ordonnance['id']; ?>" class="btn-primary text-sm">
+                                        <i class="fas fa-download mr-2"></i>Télécharger
+                                    </a>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Exemple d'ordonnance -->
-                        <div class="prescription-card bg-[#F8FAFC] rounded-lg p-4 hover:bg-[#F1F5F9]">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center space-x-4">
-                                    <div class="w-12 h-12 rounded-full bg-[#DBEAFE] flex items-center justify-center">
-                                        <i class="fas fa-user-md text-[#3b82f6] text-xl"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="font-medium text-[#1e40af]">Dr. Dubois</h3>
-                                        <p class="text-sm text-[#3b82f6]">10 Mars 2024</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-4">
-                                    <span class="px-3 py-1 bg-[#FEF3C7] text-[#f59e0b] rounded-full text-sm">
-                                        À renouveler
-                                    </span>
-                                    <button class="text-[#3b82f6] hover:text-[#2563eb]">
-                                        <i class="fas fa-download"></i>
-                                    </button>
+                            <div class="mt-4">
+                                <h4 class="text-md font-semibold text-[#1e40af] mb-2">Médicaments prescrits</h4>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                                        <thead class="bg-[#EFF6FF]">
+                                            <tr>
+                                                <th class="px-4 py-2 text-left text-sm font-medium text-[#1e40af]">Médicament</th>
+                                                <th class="px-4 py-2 text-left text-sm font-medium text-[#1e40af]">Posologie</th>
+                                                <th class="px-4 py-2 text-left text-sm font-medium text-[#1e40af]">Quantité</th>
+                                                <th class="px-4 py-2 text-left text-sm font-medium text-[#1e40af]">Durée</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php
+                                            $medicaments = explode("\n", $ordonnance['medicaments']);
+                                            $posologies = explode("\n", $ordonnance['posologie']);
+                                            $quantites = explode("\n", $ordonnance['quantite']);
+                                            $durees = explode("\n", $ordonnance['duree_medicament']);
+                                            $max = max(count($medicaments), count($posologies), count($quantites), count($durees));
+                                            for ($i = 0; $i < $max; $i++): ?>
+                                                <tr class="border-b border-gray-100">
+                                                    <td class="px-4 py-2"><?php echo isset($medicaments[$i]) ? htmlspecialchars($medicaments[$i]) : ''; ?></td>
+                                                    <td class="px-4 py-2"><?php echo isset($posologies[$i]) ? htmlspecialchars($posologies[$i]) : ''; ?></td>
+                                                    <td class="px-4 py-2"><?php echo isset($quantites[$i]) ? htmlspecialchars($quantites[$i]) : ''; ?></td>
+                                                    <td class="px-4 py-2"><?php echo isset($durees[$i]) ? htmlspecialchars($durees[$i]) : ''; ?></td>
+                                                </tr>
+                                            <?php endfor; ?>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
+
+                            <?php if (!empty($ordonnance['instructions'])): ?>
+                                <div class="mt-4">
+                                    <h4 class="text-md font-semibold text-[#1e40af] mb-2">Instructions supplémentaires</h4>
+                                    <p class="text-gray-700"><?php echo nl2br(htmlspecialchars($ordonnance['instructions'])); ?></p>
+                                </div>
+                            <?php endif; ?>
+
+                            <div class="mt-4 text-sm text-gray-600">
+                                <p>Date de validité : <?php echo date('d/m/Y', strtotime($ordonnance['date_validite'])); ?></p>
+                                <?php if ($ordonnance['renouvellement']): ?>
+                                    <p>Renouvellement possible : <?php echo $ordonnance['nombre_renouvellements']; ?> fois</p>
+                                <?php endif; ?>
+                            </div>
                         </div>
-                    </div>
+                    <?php endforeach; ?>
                 </div>
             </main>
         </div>

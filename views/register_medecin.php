@@ -51,8 +51,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $medecin->email = $_POST['email'];
             $medecin->contact = $_POST['contact'];
             $medecin->password = $_POST['password'];
-            $medecin->idspecialite = $_POST['specialite'];
-            $medecin->num = $_POST['num'];
+            $medecin->setIdSpecialite($_POST['specialite']);
+            $medecin->setNum($_POST['num']);
 
             // Vérifier si l'email existe déjà
             if ($medecin->emailExists()) {

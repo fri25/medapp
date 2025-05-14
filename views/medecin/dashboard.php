@@ -1,5 +1,7 @@
 <?php
 require_once '../../includes/session.php';
+require_once '../../config/database.php';
+require_once '../../models/Dashboard.php';
 
 // Vérifier si l'utilisateur est connecté
 requireLogin();
@@ -11,6 +13,54 @@ requireRole('medecin');
 $user_id = $_SESSION['user_id'];
 $nom = $_SESSION['nom'];
 $prenom = $_SESSION['prenom'];
+
+// Initialiser la connexion à la base de données
+$database = new Database();
+$db = $database->getConnection();
+
+// Initialiser le dashboard
+$dashboard = new Dashboard($db, $user_id);
+
+// Récupérer les données du dashboard
+$rdv_aujourdhui = $dashboard->getRendezVousAujourdhui();
+$patients_actifs = $dashboard->getPatientsActifs();
+$consultations_jour = $dashboard->getConsultationsDuJour();
+$messages_non_lus = $dashboard->getMessagesNonLus();
+$derniers_patients = $dashboard->getDerniersPatients();
+$rdv_du_jour = $dashboard->getRendezVousDuJour();
+$rappels = $dashboard->getRappelsImportants();
+
+// Nombre de consultations par jour pour le mois en cours (optimisé)
+$days_in_month = date('t');
+$current_month = date('m');
+$current_year = date('Y');
+$stmt = $db->prepare("
+    SELECT DATE(date_consultation) as jour, COUNT(*) as total
+    FROM consultation
+    WHERE id_medecin = ? AND MONTH(date_consultation) = ? AND YEAR(date_consultation) = ?
+    GROUP BY jour
+    ORDER BY jour
+");
+$stmt->execute([$user_id, $current_month, $current_year]);
+$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Préparer les données pour tous les jours du mois
+$consultations_par_jour = [];
+$labels = [];
+for ($i = 1; $i <= $days_in_month; $i++) {
+    $date = sprintf('%04d-%02d-%02d', $current_year, $current_month, $i);
+    $labels[] = date('d/m', strtotime($date));
+    $consultations_par_jour[$date] = 0;
+}
+foreach ($rows as $row) {
+    $consultations_par_jour[$row['jour']] = (int)$row['total'];
+}
+$consultations_par_jour = array_values($consultations_par_jour);
+
+// Nombre total de patients suivis (tous les patients affectés à ce médecin)
+$stmt = $db->prepare("SELECT COUNT(*) FROM patient WHERE id_medecin = ?");
+$stmt->execute([$user_id]);
+$total_patients = (int)$stmt->fetchColumn();
 ?>
 
 <!DOCTYPE html>
@@ -88,7 +138,7 @@ $prenom = $_SESSION['prenom'];
                 </a>
             </nav>
             <div class="mt-6">
-                <a href="../logout.php" class="block bg-[#FF5252] hover:bg-[#D32F2F] text-white text-center px-4 py-3 rounded-lg transition-colors duration-300">
+                <a href="../../views/logout.php" class="block bg-[#FF5252] hover:bg-[#D32F2F] text-white text-center px-4 py-3 rounded-lg transition-colors duration-300">
                     <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
                 </a>
             </div>
@@ -119,7 +169,7 @@ $prenom = $_SESSION['prenom'];
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-[#558B2F]">Rendez-vous aujourd'hui</p>
-                                <h3 class="text-2xl font-bold text-[#1B5E20]">8</h3>
+                                <h3 class="text-2xl font-bold text-[#1B5E20]"><?php echo $rdv_aujourdhui; ?></h3>
                             </div>
                             <div class="w-12 h-12 rounded-full bg-[#E8F5E9] flex items-center justify-center">
                                 <i class="fas fa-calendar-check text-xl text-[#2E7D32]"></i>
@@ -130,7 +180,7 @@ $prenom = $_SESSION['prenom'];
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-[#558B2F]">Patients actifs</p>
-                                <h3 class="text-2xl font-bold text-[#1B5E20]">24</h3>
+                                <h3 class="text-2xl font-bold text-[#1B5E20]"><?php echo $patients_actifs; ?></h3>
                             </div>
                             <div class="w-12 h-12 rounded-full bg-[#E8F5E9] flex items-center justify-center">
                                 <i class="fas fa-users text-xl text-[#4CAF50]"></i>
@@ -141,7 +191,7 @@ $prenom = $_SESSION['prenom'];
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-[#558B2F]">Consultations du jour</p>
-                                <h3 class="text-2xl font-bold text-[#1B5E20]">12</h3>
+                                <h3 class="text-2xl font-bold text-[#1B5E20]"><?php echo $consultations_jour; ?></h3>
                             </div>
                             <div class="w-12 h-12 rounded-full bg-[#E8F5E9] flex items-center justify-center">
                                 <i class="fas fa-stethoscope text-xl text-[#81C784]"></i>
@@ -152,7 +202,7 @@ $prenom = $_SESSION['prenom'];
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-[#558B2F]">Messages non lus</p>
-                                <h3 class="text-2xl font-bold text-[#1B5E20]">3</h3>
+                                <h3 class="text-2xl font-bold text-[#1B5E20]"><?php echo $messages_non_lus; ?></h3>
                             </div>
                             <div class="w-12 h-12 rounded-full bg-[#E8F5E9] flex items-center justify-center">
                                 <i class="fas fa-envelope text-xl text-[#A5D6A7]"></i>
@@ -161,60 +211,23 @@ $prenom = $_SESSION['prenom'];
                     </div>
                 </div>
 
+                <!-- Après les statistiques rapides, ajouter le graphique et l'indicateur -->
+                <div class="bg-white rounded-xl shadow-lg p-6 glass-effect my-8">
+                    <h2 class="text-xl font-semibold text-[#1B5E20] mb-4">
+                        <i class="fas fa-chart-bar mr-2"></i>Consultations du mois en cours
+                    </h2>
+                    <canvas id="consultationsChart" height="100"></canvas>
+                    <div class="mt-6 text-lg">
+                        <span class="font-semibold text-[#1B5E20]">Nombre total de patients suivis : </span>
+                        <span class="text-[#2E7D32] font-bold"><?php echo $total_patients; ?></span>
+                    </div>
+                </div>
+
                 <!-- Sections principales -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Section Patients -->
-                    <div class="bg-white rounded-xl shadow-lg p-6 glass-effect">
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-xl font-semibold text-[#1B5E20]">
-                                <i class="fas fa-users mr-2"></i>Mes Patients
-                            </h2>
-                            <a href="patients.php" class="btn-primary">
-                                <i class="fas fa-plus-circle mr-2"></i>Nouveau patient
-                            </a>
-                        </div>
-                        <div class="space-y-4">
-                            <div class="patient-card flex items-center justify-between p-4 bg-[#F1F8E9] rounded-lg hover:bg-[#E8F5E9]">
-                                <div class="flex items-center space-x-4">
-                                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#2E7D32] to-[#81C784] flex items-center justify-center">
-                                        <i class="fas fa-user text-white"></i>
-                                    </div>
-                                    <div>
-                                        <p class="font-medium text-[#1B5E20]">Jean Dupont</p>
-                                        <p class="text-sm text-[#558B2F]">Dernière visite: 15/03/2024</p>
-                                    </div>
-                                </div>
-                                <a href="#" class="text-[#2E7D32] hover:text-[#1B5E20]">
-                                    <i class="fas fa-chevron-right"></i>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
+                  
 
-                    <!-- Section Agenda -->
-                    <div class="bg-white rounded-xl shadow-lg p-6 glass-effect">
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-xl font-semibold text-[#1B5E20]">
-                                <i class="fas fa-calendar-alt mr-2"></i>Mon Agenda
-                            </h2>
-                            <a href="rdv.php" class="btn-primary">
-                                <i class="fas fa-plus-circle mr-2"></i>Nouveau RDV
-                            </a>
-                        </div>
-                        <div class="space-y-4">
-                            <div class="p-4 bg-[#F1F8E9] rounded-lg hover:bg-[#E8F5E9]">
-                                <div class="flex justify-between items-center">
-                                    <div>
-                                        <p class="font-medium text-[#1B5E20]">Marie Martin</p>
-                                        <p class="text-sm text-[#558B2F]">09:00 - 09:30</p>
-                                    </div>
-                                    <span class="px-3 py-1 bg-[#C8E6C9] text-[#1B5E20] rounded-full text-sm">
-                                        Confirmé
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                  
                 </div>
 
                 <!-- Section Rappels -->
@@ -228,7 +241,7 @@ $prenom = $_SESSION['prenom'];
                                 <div class="w-10 h-10 rounded-full bg-[#FFE0B2] flex items-center justify-center">
                                     <i class="fas fa-exclamation-circle text-[#E65100]"></i>
                                 </div>
-                                <p class="text-sm text-[#E65100]">3 rappels de vaccins à effectuer</p>
+                                <p class="text-sm text-[#E65100]"><?php echo $rappels['vaccins']; ?> rappels de vaccins à effectuer</p>
                             </div>
                         </div>
                         <div class="reminder-card p-4 bg-[#E3F2FD] rounded-lg border border-[#BBDEFB]">
@@ -236,7 +249,7 @@ $prenom = $_SESSION['prenom'];
                                 <div class="w-10 h-10 rounded-full bg-[#BBDEFB] flex items-center justify-center">
                                     <i class="fas fa-file-medical text-[#1565C0]"></i>
                                 </div>
-                                <p class="text-sm text-[#1565C0]">5 dossiers à mettre à jour</p>
+                                <p class="text-sm text-[#1565C0]"><?php echo $rappels['dossiers']; ?> dossiers à mettre à jour</p>
                             </div>
                         </div>
                         <div class="reminder-card p-4 bg-[#FFEBEE] rounded-lg border border-[#FFCDD2]">
@@ -244,7 +257,7 @@ $prenom = $_SESSION['prenom'];
                                 <div class="w-10 h-10 rounded-full bg-[#FFCDD2] flex items-center justify-center">
                                     <i class="fas fa-clock text-[#C62828]"></i>
                                 </div>
-                                <p class="text-sm text-[#C62828]">2 rendez-vous en attente de confirmation</p>
+                                <p class="text-sm text-[#C62828]"><?php echo $rappels['rdv_confirmation']; ?> rendez-vous en attente de confirmation</p>
                             </div>
                         </div>
                     </div>
@@ -252,5 +265,31 @@ $prenom = $_SESSION['prenom'];
             </main>
         </div>
     </div>
+
+    <!-- Avant </body>, ajouter Chart.js et le script du graphique -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+    const ctx = document.getElementById('consultationsChart').getContext('2d');
+    const consultationsData = <?php echo json_encode($consultations_par_jour); ?>;
+    const labels = <?php echo json_encode($labels); ?>;
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Consultations',
+                data: consultationsData,
+                backgroundColor: 'rgba(30, 64, 175, 0.7)'
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+    </script>
 </body>
 </html> 

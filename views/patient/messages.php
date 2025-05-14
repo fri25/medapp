@@ -1,46 +1,18 @@
 <?php
-require_once '../../config/database.php';
-require_once '../../models/Message.php';
 require_once '../../includes/session.php';
+require_once '../../config/database.php';
 
-// Vérifier si l'utilisateur est connecté et est un patient
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'patient') {
-    header("Location: ../login.php");
-    exit();
-}
+requireLogin();
+requireRole('patient');
 
-$database = new Database();
-$db = $database->getConnection();
-$message = new Message($db);
+$user_id = $_SESSION['user_id'];
+$db = (new Database())->getConnection();
 
-// Récupérer la liste des médecins
-$query = "SELECT m.id, m.nom, m.prenom, pm.profession as specialite 
-          FROM medecin m 
-          LEFT JOIN profilmedecin pm ON m.id = pm.idmedecin";
-$stmt = $db->prepare($query);
-$stmt->execute();
+// Liste des médecins avec qui le patient a eu un rendez-vous
+$stmt = $db->prepare("SELECT DISTINCT m.id, m.nom, m.prenom FROM medecin m JOIN rendezvous r ON m.id = r.idmedecin WHERE r.idpatient = ? ORDER BY m.nom, m.prenom");
+$stmt->execute([$user_id]);
 $medecins = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Traitement de l'envoi de message
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['envoyer'])) {
-    $message->contenu = $_POST['contenu'];
-    $message->sender_id = $_SESSION['user_id'];
-    $message->receiver_id = $_POST['receiver_id'];
-    $message->sender_type = 'patient';
-
-    if ($message->envoyer()) {
-        $success = "Message envoyé avec succès !";
-    } else {
-        $error = "Erreur lors de l'envoi du message.";
-    }
-}
-
-// Récupérer les messages si un médecin est sélectionné
-$conversation = null;
-if (isset($_GET['medecin_id'])) {
-    $stmt = $message->getConversation($_SESSION['user_id'], $_GET['medecin_id']);
-    $conversation = $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
+$selected_medecin = isset($_GET['medecin_id']) ? (int)$_GET['medecin_id'] : ($medecins[0]['id'] ?? null);
 ?>
 
 <!DOCTYPE html>
@@ -50,235 +22,266 @@ if (isset($_GET['medecin_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Messagerie - MedConnect</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background-color: #f0f9f5;
+        .chat-bubble {
+            max-width: 70%;
+            padding: 0.75rem 1rem;
+            border-radius: 1.25rem;
+            margin-bottom: 0.5rem;
+            display: inline-block;
+            word-break: break-word;
+            animation: fadeIn 0.3s ease-in-out;
         }
-        .nav-link {
-            transition: all 0.3s ease;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        .nav-link:hover {
-            background-color: rgba(59, 130, 246, 0.1);
-            transform: translateX(5px);
+        .bubble-me {
+            background: #1e40af;
+            color: white;
+            border-bottom-right-radius: 0.25rem;
+            margin-left: auto;
         }
-        .nav-link.active {
-            background-color: rgba(59, 130, 246, 0.2);
-            border-left: 4px solid #3b82f6;
+        .bubble-them {
+            background: #e5e7eb;
+            color: #1e293b;
+            border-bottom-left-radius: 0.25rem;
+            margin-right: auto;
         }
-        .glass-effect {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        .chat-container {
+            height: 60vh;
+            overflow-y: auto;
+            padding: 1rem;
+            background: #f1f5f9;
         }
-        .message-input {
-            transition: all 0.3s ease;
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 1rem;
+            color: #666;
         }
-        .message-input:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        .loading.active {
+            display: block;
         }
-        .message-bubble {
-            transition: all 0.3s ease;
+        .typing-indicator {
+            display: none;
+            padding: 0.5rem;
+            color: #666;
+            font-style: italic;
         }
-        .message-bubble:hover {
-            transform: translateY(-2px);
+        .typing-indicator.active {
+            display: block;
         }
-        .doctor-item {
-            transition: all 0.3s ease;
+        .message-status {
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+            opacity: 0.7;
         }
-        .doctor-item:hover {
-            background-color: rgba(59, 130, 246, 0.1);
-        }
-        .doctor-item.active {
-            background-color: rgba(59, 130, 246, 0.2);
-            border-left: 4px solid #3b82f6;
+        .message-status i {
+            margin-left: 0.25rem;
         }
     </style>
 </head>
 <body class="bg-gradient-to-br from-[#EFF6FF] to-[#DBEAFE] min-h-screen">
-    <div class="min-h-screen flex">
-        <!-- Barre latérale -->
-        <aside class="w-64 bg-white shadow-lg flex flex-col py-6 px-4">
-            <div class="flex items-center justify-center mb-10">
-                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#3b82f6] to-[#60a5fa] flex items-center justify-center">
-                    <i class="fas fa-heartbeat text-white text-xl"></i>
-                </div>
-                <h1 class="text-2xl font-bold text-[#1e40af] ml-3">MedConnect</h1>
-            </div>
-            <nav class="flex-1 space-y-2">
-                <a href="dashboard.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
-                    <i class="fas fa-home mr-3"></i>Tableau de bord
-                </a>
-                <a href="carnet.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
-                    <i class="fas fa-book-medical mr-3"></i>Mon Carnet de Santé
-                </a>
-                <a href="rdv.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
-                    <i class="fas fa-calendar-alt mr-3"></i>Mes Rendez-vous
-                </a>
-                <a href="ordonnace.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
-                    <i class="fas fa-prescription mr-3"></i>Mes Ordonnances
-                </a>
-                <a href="listes_pharmacie.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
-                    <i class="fas fa-pills mr-3"></i>Ma Pharmacie
-                </a>
-                <a href="messages.php" class="nav-link active block px-4 py-3 rounded-lg text-[#1e40af]">
-                    <i class="fas fa-envelope mr-3"></i>Messages
-                </a>
-                <a href="profile_patient.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
-                    <i class="fas fa-user mr-3"></i>Mon Profil
-                </a>
-            </nav>
-            <div class="mt-6">
-                <a href="../logout.php" class="block bg-[#FF5252] hover:bg-[#D32F2F] text-white text-center px-4 py-3 rounded-lg transition-colors duration-300">
-                    <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
-                </a>
-            </div>
+    <div class="flex min-h-screen">
+        <!-- Liste des médecins -->
+        <aside class="w-72 bg-white shadow-lg flex flex-col py-6 px-4">
+            <h2 class="text-xl font-bold text-[#1B5E20] mb-6"><i class="fas fa-user-md mr-2"></i>Mes Médecins</h2>
+            <ul>
+                <?php foreach ($medecins as $m): ?>
+                    <li class="mb-2">
+                        <a href="?medecin_id=<?php echo $m['id']; ?>" class="block px-4 py-2 rounded-lg <?php echo ($selected_medecin == $m['id']) ? 'bg-[#E8F5E9] font-bold text-[#1B5E20]' : 'hover:bg-[#F1F8E9]'; ?>">
+                            <?php echo htmlspecialchars($m['prenom'] . ' ' . $m['nom']); ?>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
         </aside>
-
-        <!-- Contenu principal -->
-        <div class="flex-1">
-            <!-- En-tête -->
-            <header class="bg-white shadow-sm">
-                <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-                    <div class="flex items-center space-x-4">
-                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#3b82f6] to-[#60a5fa] flex items-center justify-center">
-                            <i class="fas fa-user text-white text-xl"></i>
-                        </div>
-                        <h1 class="text-2xl font-bold text-[#1e40af]">Messagerie</h1>
-                    </div>
-                    <div class="text-sm text-[#3b82f6]">
-                        <i class="fas fa-calendar-alt mr-2"></i><?php echo date('d/m/Y'); ?>
-                    </div>
-                </div>
+        <!-- Zone de chat -->
+        <main class="flex-1 flex flex-col">
+            <header class="bg-white shadow-sm px-6 py-4 flex items-center">
+                <h1 class="text-2xl font-bold text-[#1B5E20] flex-1"><i class="fas fa-comments mr-2"></i>Conversation</h1>
+                <?php if ($selected_medecin): ?>
+                    <span class="text-[#1e40af] font-semibold">
+                        <?php
+                        $med = array_filter($medecins, fn($md) => $md['id'] == $selected_medecin);
+                        $med = $med ? array_values($med)[0] : null;
+                        if ($med) echo htmlspecialchars($med['prenom'] . ' ' . $med['nom']);
+                        ?>
+                    </span>
+                <?php endif; ?>
             </header>
-
-            <!-- Contenu principal -->
-            <main class="container mx-auto px-4 py-8">
-                <?php if (isset($success)): ?>
-                    <div class="bg-[#DCFCE7] text-[#065f46] px-4 py-3 rounded-lg mb-6 flex items-center">
-                        <i class="fas fa-check-circle mr-2"></i>
-                        <?php echo $success; ?>
-                    </div>
-                <?php endif; ?>
-
-                <?php if (isset($error)): ?>
-                    <div class="bg-[#FEE2E2] text-[#991B1B] px-4 py-3 rounded-lg mb-6 flex items-center">
-                        <i class="fas fa-exclamation-circle mr-2"></i>
-                        <?php echo $error; ?>
-                    </div>
-                <?php endif; ?>
-
-                <div class="bg-white rounded-xl shadow-lg overflow-hidden glass-effect">
-                    <div class="grid grid-cols-12 h-[calc(100vh-12rem)]">
-                        <!-- Liste des médecins -->
-                        <div class="col-span-4 border-r border-gray-200">
-                            <div class="p-4 bg-[#F8FAFC]">
-                                <h2 class="text-lg font-semibold text-[#1e40af] flex items-center">
-                                    <i class="fas fa-user-md mr-2"></i>
-                                    Médecins
-                                </h2>
-                            </div>
-                            <div class="overflow-y-auto h-[calc(100%-4rem)]">
-                                <?php foreach ($medecins as $medecin): ?>
-                                    <a href="?medecin_id=<?php echo $medecin['id']; ?>" 
-                                       class="doctor-item block p-4 border-b border-gray-100 <?php echo (isset($_GET['medecin_id']) && $_GET['medecin_id'] == $medecin['id']) ? 'active' : ''; ?>">
-                                        <div class="flex items-center">
-                                            <div class="flex-shrink-0">
-                                                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#3b82f6] to-[#60a5fa] flex items-center justify-center">
-                                                    <i class="fas fa-user-md text-white"></i>
-                                                </div>
-                                            </div>
-                                            <div class="ml-3">
-                                                <p class="text-sm font-medium text-[#1e40af]">
-                                                    Dr. <?php echo htmlspecialchars($medecin['nom'] . ' ' . $medecin['prenom']); ?>
-                                                </p>
-                                                <p class="text-xs text-[#3b82f6]">
-                                                    <?php echo htmlspecialchars($medecin['specialite']); ?>
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </a>
-                                <?php endforeach; ?>
-                            </div>
+            <div id="chat" class="chat-container flex-1"></div>
+            <div id="loading" class="loading">
+                <i class="fas fa-spinner fa-spin mr-2"></i>Chargement des messages...
                         </div>
-
-                        <!-- Zone de conversation -->
-                        <div class="col-span-8 flex flex-col">
-                            <?php if (isset($_GET['medecin_id'])): ?>
-                                <!-- Messages -->
-                                <div class="flex-1 overflow-y-auto p-6 bg-[#F8FAFC]">
-                                    <?php if ($conversation): ?>
-                                        <?php foreach ($conversation as $msg): ?>
-                                            <div class="mb-4 <?php echo $msg['sender_id'] == $_SESSION['user_id'] ? 'text-right' : ''; ?>">
-                                                <div class="message-bubble inline-block max-w-[70%] rounded-lg p-4 <?php echo $msg['sender_id'] == $_SESSION['user_id'] ? 'bg-[#3b82f6] text-white' : 'bg-white text-[#1e40af] shadow-sm'; ?>">
-                                                    <p class="text-sm"><?php echo htmlspecialchars($msg['contenu']); ?></p>
-                                                    <p class="text-xs mt-2 <?php echo $msg['sender_id'] == $_SESSION['user_id'] ? 'text-blue-100' : 'text-gray-500'; ?>">
-                                                        <?php echo date('d/m/Y H:i', strtotime($msg['date_envoi'])); ?>
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        <?php endforeach; ?>
-                                    <?php else: ?>
-                                        <div class="flex items-center justify-center h-full text-[#3b82f6]">
-                                            <div class="text-center">
-                                                <i class="fas fa-comments text-4xl mb-2"></i>
-                                                <p>Aucun message dans cette conversation.</p>
-                                            </div>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-
-                                <!-- Formulaire d'envoi -->
-                                <div class="border-t border-gray-200 p-4 bg-white">
-                                    <form method="POST" class="flex gap-3">
-                                        <input type="hidden" name="receiver_id" value="<?php echo $_GET['medecin_id']; ?>">
-                                        <textarea name="contenu" rows="1" 
-                                                  class="message-input flex-1 border border-gray-200 rounded-lg px-4 py-3 focus:outline-none resize-none" 
-                                                  placeholder="Écrivez votre message..."></textarea>
-                                        <button type="submit" name="envoyer" 
-                                                class="bg-[#3b82f6] hover:bg-[#2563eb] text-white px-6 py-3 rounded-lg transition-colors duration-300 flex items-center justify-center">
+            <div id="typing" class="typing-indicator">
+                Le médecin est en train d'écrire...
+                    </div>
+            <form id="sendForm" class="flex items-center p-4 bg-white border-t">
+                <input type="hidden" name="receiver_id" id="receiver_id" value="<?php echo $selected_medecin; ?>">
+                <input type="text" name="contenu" id="contenu" class="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:border-[#2E7D32] mr-2" placeholder="Écrire un message..." autocomplete="off" required>
+                <button type="submit" class="bg-[#1e40af] hover:bg-[#2563eb] text-white px-6 py-2 rounded-lg font-semibold" id="sendButton">
                                             <i class="fas fa-paper-plane"></i>
                                         </button>
                                     </form>
-                                </div>
-                            <?php else: ?>
-                                <div class="flex-1 flex items-center justify-center bg-[#F8FAFC]">
-                                    <div class="text-center text-[#3b82f6]">
-                                        <i class="fas fa-comments text-4xl mb-2"></i>
-                                        <p>Sélectionnez un médecin pour commencer la conversation</p>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
             </main>
-        </div>
     </div>
-
     <script>
-        // Auto-resize textarea
-        const textarea = document.querySelector('textarea');
-        if (textarea) {
-            textarea.addEventListener('input', function() {
-                this.style.height = 'auto';
-                this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+    const chat = document.getElementById('chat');
+    const form = document.getElementById('sendForm');
+    const contenu = document.getElementById('contenu');
+    const receiver_id = document.getElementById('receiver_id').value;
+    const loading = document.getElementById('loading');
+    const typing = document.getElementById('typing');
+    const sendButton = document.getElementById('sendButton');
+    let isTyping = false;
+    let typingTimeout;
+
+    function escapeHtml(text) {
+        var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+
+    function showLoading() {
+        loading.classList.add('active');
+    }
+
+    function hideLoading() {
+        loading.classList.remove('active');
+    }
+
+    function showTyping() {
+        if (!isTyping) {
+            isTyping = true;
+            typing.classList.add('active');
+        }
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            isTyping = false;
+            typing.classList.remove('active');
+        }, 3000);
+    }
+
+        function loadMessages() {
+        if (!receiver_id) return;
+        showLoading();
+        fetch('../../api/messages.php?other_id=' + receiver_id)
+            .then(res => res.json())
+            .then(messages => {
+                chat.innerHTML = '';
+                messages.forEach(msg => {
+                    const isMe = msg.sender_type === 'patient';
+                    const bubble = document.createElement('div');
+                    bubble.className = 'chat-bubble ' + (isMe ? 'bubble-me' : 'bubble-them');
+                    
+                    const messageContent = document.createElement('div');
+                    messageContent.innerHTML = escapeHtml(msg.contenu);
+                    
+                    const messageStatus = document.createElement('div');
+                    messageStatus.className = 'message-status';
+                    messageStatus.innerHTML = `
+                                            ${new Date(msg.date_envoi).toLocaleString('fr-FR')}
+                        ${isMe ? '<i class="fas fa-check-double"></i>' : ''}
+                    `;
+                    
+                    bubble.appendChild(messageContent);
+                    bubble.appendChild(messageStatus);
+                    chat.appendChild(bubble);
+                });
+                chat.scrollTop = chat.scrollHeight;
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Erreur lors du chargement des messages:', error);
+                hideLoading();
+            });
+    }
+
+    form.onsubmit = function(e) {
+        e.preventDefault();
+        if (!contenu.value.trim()) return;
+
+        const data = new FormData(form);
+        data.append('sender_type', 'patient');
+        
+        sendButton.disabled = true;
+        sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        
+        fetch('../../api/envoyer_message.php', {
+                    method: 'POST',
+            body: data
+        })
+        .then(res => res.json())
+        .then(resp => {
+            if (resp.success) {
+                contenu.value = '';
+                        loadMessages();
+                    } else {
+                alert('Erreur lors de l\'envoi du message. Veuillez réessayer.');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur lors de l\'envoi du message:', error);
+            alert('Erreur lors de l\'envoi du message. Veuillez réessayer.');
+        })
+        .finally(() => {
+            sendButton.disabled = false;
+            sendButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
+        });
+    };
+
+    // Rafraîchissement auto
+    setInterval(loadMessages, 2000);
+    window.onload = loadMessages;
+
+    // Vérification du statut de frappe
+    function checkTyping() {
+        if (!receiver_id) return;
+        fetch('../../api/check_typing.php?user_id=' + receiver_id)
+            .then(res => res.json())
+            .then(data => {
+                if (data.is_typing) {
+                    showTyping();
+                }
+            })
+            .catch(error => console.error('Erreur lors de la vérification du statut de frappe:', error));
+    }
+
+    // Vérification périodique du statut de frappe
+    setInterval(checkTyping, 2000);
+
+    // Gestion du focus et du blur sur l'input
+    contenu.addEventListener('focus', () => {
+        if (receiver_id) {
+            fetch('../../api/typing.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    receiver_id: receiver_id,
+                    is_typing: true
+                })
             });
         }
+    });
 
-        // Scroll to bottom of messages
-        const messagesContainer = document.querySelector('.overflow-y-auto');
-        if (messagesContainer) {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    contenu.addEventListener('blur', () => {
+        if (receiver_id) {
+            fetch('../../api/typing.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    receiver_id: receiver_id,
+                    is_typing: false
+                })
+            });
         }
-
-        // Focus textarea on load
-        if (textarea) {
-            textarea.focus();
-        }
+    });
     </script>
 </body>
 </html> 

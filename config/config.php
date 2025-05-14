@@ -4,8 +4,16 @@
  * Inclut les paramètres de base de données et les fonctions de connexion sécurisée
  */
 
+// Définition des constantes de chemins
+define('ROOT_PATH', dirname(__DIR__));
+define('CONFIG_PATH', __DIR__);
+define('INCLUDES_PATH', ROOT_PATH . '/includes');
+define('LOGS_PATH', ROOT_PATH . '/logs');
+define('UPLOADS_PATH', ROOT_PATH . '/uploads');
+define('VIEWS_PATH', ROOT_PATH . '/views');
+
 // Charger les variables d'environnement
-require_once __DIR__ . '/../includes/env_loader.php';
+require_once INCLUDES_PATH . '/env_loader_bypass.php';
 
 // Activation de la gestion stricte des erreurs
 error_reporting(E_ALL);
@@ -30,9 +38,11 @@ class Config {
         ],
         'app' => [
             'log_errors' => true,
-            'error_log_path' => '../logs/error.log',
+            'error_log_path' => LOGS_PATH . '/error.log',
             'session_timeout' => 1800, // 30 minutes
-            'env' => null
+            'env' => null,
+            'debug' => false,
+            'allowed_origins' => ['http://localhost', 'https://medapp.com']
         ],
         'auth' => [
             'google' => [
@@ -45,21 +55,65 @@ class Config {
 
     /**
      * Initialise la configuration avec les variables d'environnement
+     * @throws Exception Si la configuration est invalide
      */
     public static function init() {
-        // Charger les paramètres de base de données depuis .env
-        self::$config['database']['host'] = env('DB_HOST');
-        self::$config['database']['dbname'] = env('DB_NAME');
-        self::$config['database']['username'] = env('DB_USER');
-        self::$config['database']['password'] = env('DB_PASS');
-        
-        // Charger les paramètres de l'application
-        self::$config['app']['env'] = env('APP_ENV');
-        
-        // Charger les paramètres d'authentification Google
-        self::$config['auth']['google']['client_id'] = env('GOOGLE_CLIENT_ID');
-        self::$config['auth']['google']['client_secret'] = env('GOOGLE_CLIENT_SECRET');
-        self::$config['auth']['google']['redirect_uri'] = env('GOOGLE_REDIRECT_URI');
+        try {
+            // Validation des paramètres de base de données
+            $required_db_params = ['DB_HOST', 'DB_NAME', 'DB_USER'];
+    
+            foreach ($required_db_params as $param) {
+                if (env($param) === false) {
+                    throw new Exception("Paramètre de base de données manquant : {$param}");
+                }
+            }
+    
+            // Vérification spéciale pour DB_PASS
+            $dbPass = env('DB_PASS');
+            if (!isset($dbPass) && !empty($dbPass) && $_ENV['APP_ENV'] !== 'development') {
+                throw new Exception("Paramètre de base de données manquant : DB_PASS");
+            }
+    
+            // Charger les paramètres de base de données depuis .env
+            self::$config['database']['host'] = env('DB_HOST');
+            self::$config['database']['dbname'] = env('DB_NAME');
+            self::$config['database']['username'] = env('DB_USER');
+            self::$config['database']['password'] = $dbPass; // Utilisation de la valeur DB_PASS
+            
+            // Charger les paramètres de l'application
+            self::$config['app']['env'] = env('APP_ENV', 'development');
+            self::$config['app']['debug'] = env('APP_DEBUG', false);
+            
+            // Charger les paramètres d'authentification Google
+            self::$config['auth']['google']['client_id'] = env('GOOGLE_CLIENT_ID');
+            self::$config['auth']['google']['client_secret'] = env('GOOGLE_CLIENT_SECRET');
+            self::$config['auth']['google']['redirect_uri'] = env('GOOGLE_REDIRECT_URI');
+
+            // Créer les répertoires nécessaires
+            self::createRequiredDirectories();
+        } catch (Exception $e) {
+            self::logError('Erreur d\'initialisation de la configuration : ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Crée les répertoires nécessaires s'ils n'existent pas
+     */
+    private static function createRequiredDirectories() {
+        $directories = [
+            LOGS_PATH,
+            UPLOADS_PATH,
+            UPLOADS_PATH . '/temp',
+            UPLOADS_PATH . '/documents',
+            UPLOADS_PATH . '/images'
+        ];
+
+        foreach ($directories as $dir) {
+            if (!file_exists($dir)) {
+                mkdir($dir, 0755, true);
+            }
+        }
     }
 
     /**
@@ -103,8 +157,9 @@ class Config {
                 throw new Exception("Configuration de base de données incomplète");
             }
 
-            // Connexion à la base de données
+            // Connexion à la base de données avec timeout
             $dsn = "mysql:host={$host};dbname={$dbname};charset={$charset}";
+            $options[PDO::ATTR_TIMEOUT] = 5; // 5 secondes de timeout
             $pdo = new PDO($dsn, $username, $password, $options);
 
             // Test de la connexion

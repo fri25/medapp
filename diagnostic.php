@@ -1,229 +1,159 @@
 <?php
-// Mode débogage forcé
+/**
+ * Script de diagnostic pour vérifier la configuration du système
+ * Affiche les informations sur l'environnement PHP, les extensions requises,
+ * les fichiers nécessaires et les dépendances
+ */
+
+// Afficher les erreurs en mode développement
 ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Style pour un affichage lisible
-echo '<!DOCTYPE html>
-<html>
+// Fonction pour vérifier si une extension PHP est chargée
+function checkExtension($extension) {
+    return extension_loaded($extension) ? 
+        "<span style='color: green;'>✓ Installée</span>" : 
+        "<span style='color: red;'>✗ Non installée</span>";
+}
+
+// Fonction pour vérifier si un fichier existe
+function checkFile($file) {
+    return file_exists($file) ? 
+        "<span style='color: green;'>✓ Présent</span>" : 
+        "<span style='color: red;'>✗ Manquant</span>";
+}
+
+// Fonction pour vérifier si une dépendance Composer est installée
+function checkComposerDependency($package) {
+    $composerLock = __DIR__ . '/composer.lock';
+    if (!file_exists($composerLock)) {
+        return "<span style='color: red;'>✗ Fichier composer.lock manquant</span>";
+    }
+    
+    $content = file_get_contents($composerLock);
+    return strpos($content, $package) !== false ? 
+        "<span style='color: green;'>✓ Installée</span>" : 
+        "<span style='color: red;'>✗ Non installée</span>";
+}
+
+// Fonction pour vérifier si une variable d'environnement est définie
+function checkEnvVariable($variable) {
+    return getenv($variable) !== false ? 
+        "<span style='color: green;'>✓ Définie</span>" : 
+        "<span style='color: red;'>✗ Non définie</span>";
+}
+
+// En-tête HTML
+echo "<!DOCTYPE html>
+<html lang='fr'>
 <head>
-    <meta charset="UTF-8">
-    <title>Diagnostic MedApp</title>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Diagnostic MedConnect</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }
-        h1 { color: #333; }
-        .success { color: green; }
-        .error { color: red; }
-        .warning { color: orange; }
-        .section { margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-        .result { margin-left: 20px; }
-        pre { background: #f5f5f5; padding: 10px; overflow: auto; }
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+        .check-item {
+            margin: 5px 0;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+        }
+        .error {
+            color: #c0392b;
+        }
+        .success {
+            color: #27ae60;
+        }
     </style>
 </head>
 <body>
-    <h1>Diagnostic MedApp</h1>';
+    <div class='container'>
+        <h1>Diagnostic MedConnect</h1>";
 
-// Fonction pour afficher un résultat
-function showResult($test, $result, $message = '') {
-    echo '<div class="result">';
-    if ($result) {
-        echo '<span class="success">✓ ' . $test . ' : OK</span>';
-    } else {
-        echo '<span class="error">✗ ' . $test . ' : ÉCHEC</span>';
-    }
-    if (!empty($message)) {
-        echo '<br><span class="message">' . $message . '</span>';
-    }
-    echo '</div>';
-    
-    return $result;
-}
+// Vérification de la version PHP
+echo "<div class='section'>
+    <h2>Version PHP</h2>
+    <div class='check-item'>Version actuelle : " . phpversion() . "</div>
+    <div class='check-item'>Version requise : 7.4.0 ou supérieure</div>
+</div>";
 
-// 1. Vérification de la version PHP
-echo '<div class="section">';
-echo '<h2>1. Environnement PHP</h2>';
-$phpVersion = phpversion();
-$requiredVersion = '7.4.0';
-$phpVersionOk = version_compare($phpVersion, $requiredVersion, '>=');
-showResult('Version PHP', $phpVersionOk, 'Version actuelle: ' . $phpVersion . ', Version requise: >= ' . $requiredVersion);
+// Vérification des extensions PHP requises
+echo "<div class='section'>
+    <h2>Extensions PHP requises</h2>
+    <div class='check-item'>PDO : " . checkExtension('pdo') . "</div>
+    <div class='check-item'>PDO MySQL : " . checkExtension('pdo_mysql') . "</div>
+    <div class='check-item'>OpenSSL : " . checkExtension('openssl') . "</div>
+    <div class='check-item'>JSON : " . checkExtension('json') . "</div>
+    <div class='check-item'>MBString : " . checkExtension('mbstring') . "</div>
+    <div class='check-item'>Fileinfo : " . checkExtension('fileinfo') . "</div>
+</div>";
 
-// Extensions requises
-$requiredExtensions = ['pdo', 'pdo_mysql', 'json', 'mbstring', 'openssl'];
-echo '<h3>Extensions PHP requises</h3>';
-$extensionsOk = true;
+// Vérification des fichiers requis
+echo "<div class='section'>
+    <h2>Fichiers requis</h2>
+    <div class='check-item'>config/config.php : " . checkFile(__DIR__ . '/config/config.php') . "</div>
+    <div class='check-item'>.env : " . checkFile(__DIR__ . '/.env') . "</div>
+    <div class='check-item'>composer.json : " . checkFile(__DIR__ . '/composer.json') . "</div>
+    <div class='check-item'>composer.lock : " . checkFile(__DIR__ . '/composer.lock') . "</div>
+</div>";
 
-foreach ($requiredExtensions as $extension) {
-    $loaded = extension_loaded($extension);
-    if (!$loaded) {
-        $extensionsOk = false;
-    }
-    showResult('Extension ' . $extension, $loaded);
-}
-echo '</div>';
+// Vérification des dépendances Composer
+echo "<div class='section'>
+    <h2>Dépendances Composer</h2>
+    <div class='check-item'>PHPMailer : " . checkComposerDependency('phpmailer/phpmailer') . "</div>
+    <div class='check-item'>Monolog : " . checkComposerDependency('monolog/monolog') . "</div>
+    <div class='check-item'>Firebase/php-jwt : " . checkComposerDependency('firebase/php-jwt') . "</div>
+</div>";
 
-// 2. Vérification des chemins et fichiers
-echo '<div class="section">';
-echo '<h2>2. Chemins et fichiers</h2>';
+// Vérification des variables d'environnement
+echo "<div class='section'>
+    <h2>Variables d'environnement</h2>
+    <div class='check-item'>DB_HOST : " . checkEnvVariable('DB_HOST') . "</div>
+    <div class='check-item'>DB_NAME : " . checkEnvVariable('DB_NAME') . "</div>
+    <div class='check-item'>DB_USER : " . checkEnvVariable('DB_USER') . "</div>
+    <div class='check-item'>DB_PASS : " . checkEnvVariable('DB_PASS') . "</div>
+    <div class='check-item'>APP_URL : " . checkEnvVariable('APP_URL') . "</div>
+</div>";
 
-$rootPath = __DIR__;
-echo 'Répertoire racine: ' . $rootPath . '<br>';
+// Résumé et recommandations
+echo "<div class='summary'>
+    <h2>Résumé</h2>
+    <p>Ce diagnostic vérifie les éléments essentiels pour le bon fonctionnement de MedConnect.</p>
+    <p>Si des éléments sont marqués en rouge, veuillez les installer ou les configurer avant de continuer.</p>
+</div>";
 
-$requiredFiles = [
-    'config/config.php',
-    'config/database.php',
-    'includes/session.php',
-    'includes/env_loader.php',
-    '.env',
-    'composer.json'
-];
-
-$filesOk = true;
-foreach ($requiredFiles as $file) {
-    $exists = file_exists($rootPath . '/' . $file);
-    if (!$exists) {
-        $filesOk = false;
-    }
-    showResult('Fichier ' . $file, $exists);
-}
-echo '</div>';
-
-// 3. Vérification de Composer
-echo '<div class="section">';
-echo '<h2>3. Composer et dépendances</h2>';
-
-$composerAutoload = file_exists($rootPath . '/vendor/autoload.php');
-showResult('Fichier vendor/autoload.php', $composerAutoload, 
-    $composerAutoload ? 'Les dépendances Composer sont installées.' : 'Les dépendances Composer ne sont PAS installées. Exécutez "composer install" ou "composer update".');
-
-// Si l'autoloader est disponible, vérifier les dépendances spécifiques
-if ($composerAutoload) {
-    echo '<h3>Dépendances spécifiques</h3>';
-    require_once $rootPath . '/vendor/autoload.php';
-    
-    $dependencies = [
-        'Dotenv\\Dotenv' => 'vlucas/phpdotenv',
-        'Google_Client' => 'google/apiclient'
-    ];
-    
-    foreach ($dependencies as $class => $package) {
-        $exists = class_exists($class);
-        showResult('Package ' . $package, $exists);
-    }
-} else {
-    echo '<div class="warning">Impossible de vérifier les dépendances spécifiques sans autoloader.</div>';
-}
-echo '</div>';
-
-// 4. Vérification des variables d'environnement
-echo '<div class="section">';
-echo '<h2>4. Variables d\'environnement</h2>';
-
-if (file_exists($rootPath . '/.env')) {
-    echo 'Fichier .env trouvé, tentative de chargement...<br>';
-    
-    // Tenter de charger manuellement le fichier .env pour diagnostic
-    try {
-        $envContent = file_get_contents($rootPath . '/.env');
-        $envLines = explode("\n", $envContent);
-        $envVars = [];
-        
-        foreach ($envLines as $line) {
-            $line = trim($line);
-            if (empty($line) || strpos($line, '#') === 0) {
-                continue;
-            }
-            
-            list($key, $value) = explode('=', $line, 2) + [null, null];
-            if (!empty($key)) {
-                $envVars[$key] = $value;
-            }
-        }
-        
-        echo '<h3>Variables détectées dans .env</h3>';
-        echo '<ul>';
-        foreach ($envVars as $key => $value) {
-            // Masquer les informations sensibles
-            if (strpos($key, 'SECRET') !== false || strpos($key, 'PASS') !== false) {
-                $value = '******';
-            }
-            echo '<li>' . htmlspecialchars($key) . ' = ' . htmlspecialchars($value) . '</li>';
-        }
-        echo '</ul>';
-        
-        // Vérifier les variables requises
-        $requiredEnvVars = ['DB_HOST', 'DB_NAME', 'DB_USER', 'APP_ENV'];
-        $envVarsOk = true;
-        
-        foreach ($requiredEnvVars as $var) {
-            $exists = isset($envVars[$var]) && !empty($envVars[$var]);
-            if (!$exists) {
-                $envVarsOk = false;
-            }
-            showResult('Variable ' . $var, $exists);
-        }
-    } catch (Exception $e) {
-        echo '<div class="error">Erreur lors de la lecture du fichier .env: ' . $e->getMessage() . '</div>';
-    }
-} else {
-    echo '<div class="error">Fichier .env non trouvé!</div>';
-}
-echo '</div>';
-
-// 5. Tests d'inclusion
-echo '<div class="section">';
-echo '<h2>5. Tests d\'inclusion</h2>';
-
-echo '<h3>Test d\'inclusion de config.php</h3>';
-try {
-    if (file_exists($rootPath . '/config/config.php')) {
-        ob_start();
-        require_once $rootPath . '/config/config.php';
-        ob_end_clean();
-        echo '<div class="success">config.php chargé avec succès</div>';
-        
-        // Vérifier si les fonctions essentielles sont définies
-        $configFunctions = [
-            'env' => function_exists('env'),
-            'config' => function_exists('config'),
-            'db' => function_exists('db')
-        ];
-        
-        foreach ($configFunctions as $func => $exists) {
-            showResult('Fonction ' . $func . '()', $exists);
-        }
-    } else {
-        echo '<div class="error">config.php non trouvé</div>';
-    }
-} catch (Exception $e) {
-    echo '<div class="error">Erreur lors du chargement de config.php: ' . $e->getMessage() . '</div>';
-    echo '<pre>' . $e->getTraceAsString() . '</pre>';
-}
-echo '</div>';
-
-// Résumé
-echo '<div class="section">';
-echo '<h2>Résumé du diagnostic</h2>';
-
-$allOk = $phpVersionOk && $extensionsOk && $filesOk && $composerAutoload;
-if ($allOk) {
-    echo '<div class="success">Toutes les vérifications de base ont réussi.</div>';
-} else {
-    echo '<div class="error">Certaines vérifications ont échoué. Veuillez résoudre les problèmes indiqués ci-dessus.</div>';
-    
-    echo '<h3>Recommandations:</h3>';
-    echo '<ol>';
-    if (!$composerAutoload) {
-        echo '<li>Exécutez <code>composer update</code> pour installer les dépendances manquantes.</li>';
-    }
-    if (!$filesOk) {
-        echo '<li>Vérifiez que tous les fichiers requis sont présents dans les bons répertoires.</li>';
-    }
-    if (!isset($envVarsOk) || !$envVarsOk) {
-        echo '<li>Assurez-vous que votre fichier .env contient toutes les variables requises.</li>';
-    }
-    echo '</ol>';
-}
-echo '</div>';
-
-echo '</body></html>';
+// Pied de page
+echo "</div></body></html>";
 ?> 

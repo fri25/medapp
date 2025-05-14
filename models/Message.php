@@ -44,29 +44,43 @@ class Message {
 
     // Récupérer les messages entre deux utilisateurs
     public function getConversation($user1_id, $user2_id) {
+        // Convertir les paramètres en entiers
+        $user1_id = (int)$user1_id;
+        $user2_id = (int)$user2_id;
+
         $query = "SELECT m.*, 
                     CASE 
-                        WHEN m.sender_type = 'patient' THEN CONCAT(p.nom, ' ', p.prenom)
-                        WHEN m.sender_type = 'medecin' THEN CONCAT(med.nom, ' ', med.prenom)
+                        WHEN m.sender_id = ? THEN 'patient'
+                        ELSE 'medecin'
+                    END as sender_type,
+                    CASE 
+                        WHEN m.sender_id = ? THEN CONCAT(p.nom, ' ', p.prenom)
+                        ELSE CONCAT(med.nom, ' ', med.prenom)
                     END as sender_nom
-                FROM " . $this->table_name . " m
-                LEFT JOIN medecin med ON m.sender_id = med.id AND m.sender_type = 'medecin'
-                LEFT JOIN patient p ON m.sender_id = p.id AND m.sender_type = 'patient'
-                WHERE (m.sender_id = :sender1 AND m.receiver_id = :receiver1)
-                OR (m.sender_id = :sender2 AND m.receiver_id = :receiver2)
+                FROM messages m
+                LEFT JOIN medecin med ON m.sender_id = med.id
+                LEFT JOIN patient p ON m.sender_id = p.id
+                WHERE (m.sender_id = ? AND m.receiver_id = ?)
+                OR (m.sender_id = ? AND m.receiver_id = ?)
                 ORDER BY m.date_envoi ASC";
 
-        $stmt = $this->db->prepare($query);
-
-        // Lier les paramètres avec des noms distincts
-        $stmt->bindParam(":sender1", $user1_id);
-        $stmt->bindParam(":receiver1", $user2_id);
-        $stmt->bindParam(":sender2", $user2_id);
-        $stmt->bindParam(":receiver2", $user1_id);
-
-        $stmt->execute();
-
-        return $stmt;
+        try {
+            $stmt = $this->db->prepare($query);
+            
+            // Lier les paramètres positionnels
+            $stmt->bindValue(1, $user1_id, PDO::PARAM_INT);
+            $stmt->bindValue(2, $user1_id, PDO::PARAM_INT);
+            $stmt->bindValue(3, $user1_id, PDO::PARAM_INT);
+            $stmt->bindValue(4, $user2_id, PDO::PARAM_INT);
+            $stmt->bindValue(5, $user2_id, PDO::PARAM_INT);
+            $stmt->bindValue(6, $user1_id, PDO::PARAM_INT);
+            
+            $stmt->execute();
+            return $stmt;
+        } catch (PDOException $e) {
+            error_log("Erreur dans getConversation: " . $e->getMessage());
+            throw $e;
+        }
     }
 
     // Marquer un message comme lu

@@ -10,50 +10,46 @@ if (!function_exists('env')) {
 }
 
 // Configurer les options de session avant de la démarrer
-$session_name = 'MEDSESSID'; // Nom personnalisé pour masquer l'utilisation de PHP
-$secure = false; // Définir à true en production avec HTTPS
-$httponly = true; // Empêche l'accès au cookie via JavaScript
-$samesite = 'Lax'; // Protection contre les attaques CSRF
+$session_name = 'MEDSESSID';
+$secure = false; // Désactivé en développement
+$httponly = true;
+$samesite = 'Lax';
 
-// En production, forcer HTTPS
-if (env('APP_ENV') === 'production') {
-    $secure = true;
-    ini_set('session.cookie_secure', 1);
+// Définir le chemin de sauvegarde des sessions
+$session_path = __DIR__ . '/../storage/sessions';
+if (!is_dir($session_path)) {
+    mkdir($session_path, 0777, true);
 }
+ini_set('session.save_path', $session_path);
 
 // Définir les options de cookie
 ini_set('session.use_strict_mode', 1);
 ini_set('session.use_cookies', 1);
 ini_set('session.use_only_cookies', 1);
 ini_set('session.cookie_httponly', 1);
+ini_set('session.cookie_samesite', $samesite);
+ini_set('session.gc_probability', 1);
+ini_set('session.gc_divisor', 100);
 
-// Configurer la durée de vie du cookie (30 minutes = 1800 secondes)
-ini_set('session.gc_maxlifetime', 1800);
-ini_set('session.cookie_lifetime', 1800);
+// Configurer la durée de vie du cookie (2 heures en développement)
+$session_lifetime = 7200; // 2 heures
+ini_set('session.gc_maxlifetime', $session_lifetime);
+ini_set('session.cookie_lifetime', $session_lifetime);
 
-// Paramétrer le cookie SameSite
+// Paramétrer le cookie
 session_set_cookie_params([
-    'lifetime' => 1800,
-    'path' => '/',
-    'domain' => '', // Auto
+    'lifetime' => $session_lifetime,
+    'path' => '/medapp/', // Chemin spécifique à l'application
+    'domain' => '',
     'secure' => $secure,
     'httponly' => $httponly,
     'samesite' => $samesite
 ]);
 
-// Définir un nom de session personnalisé uniquement si la session n'est pas déjà active
+// Démarrer la session si elle n'est pas déjà active
 if (session_status() == PHP_SESSION_NONE) {
     session_name($session_name);
     session_start();
-    
-    // Régénérer l'ID de session périodiquement pour prévenir la fixation de session
-    if (!isset($_SESSION['created'])) {
-        $_SESSION['created'] = time();
-    } else if (time() - $_SESSION['created'] > 600) { // Régénérer toutes les 10 minutes
-        // Régénérer l'ID de session
-        session_regenerate_id(true);
-        $_SESSION['created'] = time();
-    }
 }
 
 /**
@@ -62,31 +58,20 @@ if (session_status() == PHP_SESSION_NONE) {
  * @return bool True si l'utilisateur est connecté
  */
 function isLoggedIn() {
-    // Vérifier si l'utilisateur est connecté
-    if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
-        return false;
-    }
-
-    // Vérifier si la session n'a pas expiré
-    if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > 1800)) {
-        logout();
-        return false;
-    }
-
-    // Mettre à jour le timestamp de dernière activité
-    $_SESSION['last_activity'] = time();
-
-    return true;
+    return isset($_SESSION['user_id']) && isset($_SESSION['role']);
 }
 
 /**
  * Vérifie si l'utilisateur a le rôle requis
  * 
- * @param string $role Le rôle requis (admin, medecin, patient)
+ * @param string|array $role Le rôle ou les rôles requis (admin, medecin, patient)
  * @return bool True si l'utilisateur a le rôle requis
  */
 function hasRole($role) {
-    return isset($_SESSION['role']) && $_SESSION['role'] === $role;
+    if (!isset($_SESSION['role'])) {
+        return false;
+    }
+    return $_SESSION['role'] === $role;
 }
 
 /**
@@ -104,7 +89,7 @@ function requireLogin() {
  * Exige que l'utilisateur ait un rôle spécifique
  * Redirige vers la page d'accueil si ce n'est pas le cas
  * 
- * @param string $role Le rôle requis (admin, medecin, patient)
+ * @param string|array $role Le rôle ou les rôles requis (admin, medecin, patient)
  */
 function requireRole($role) {
     requireLogin();
@@ -118,20 +103,26 @@ function requireRole($role) {
  * Déconnecte l'utilisateur
  */
 function logout() {
-    // Détruire toutes les variables de session
     $_SESSION = array();
-
-    // Détruire le cookie de session
     if (isset($_COOKIE[session_name()])) {
-        setcookie(session_name(), '', time() - 3600, '/');
+        setcookie(session_name(), '', time() - 3600, '/medapp/');
     }
-
-    // Détruire la session
     session_destroy();
-
-    // Rediriger vers la page de connexion
     header('Location: /medapp/views/login.php');
     exit();
+}
+
+/**
+ * Initialise la session utilisateur
+ */
+function initSession($user_id, $role, $nom, $prenom, $email, $auth_method = 'standard') {
+    $_SESSION['user_id'] = $user_id;
+    $_SESSION['role'] = $role;
+    $_SESSION['nom'] = $nom;
+    $_SESSION['prenom'] = $prenom;
+    $_SESSION['email'] = $email;
+    $_SESSION['auth_method'] = $auth_method;
+    $_SESSION['last_activity'] = time();
 }
 
 /**
@@ -139,7 +130,9 @@ function logout() {
  */
 function generateBrowserFingerprint() {
     $user_agent = $_SERVER['HTTP_USER_AGENT'];
-    $_SESSION['browser_fingerprint'] = hash_hmac('sha256', $user_agent, env('SESSION_SECRET'));
+    $ip = $_SERVER['REMOTE_ADDR'];
+    $fingerprint = hash_hmac('sha256', $user_agent . $ip, env('SESSION_SECRET'));
+    $_SESSION['browser_fingerprint'] = $fingerprint;
 }
 
 /**
@@ -153,7 +146,18 @@ function verifyBrowserFingerprint() {
     }
 
     $user_agent = $_SERVER['HTTP_USER_AGENT'];
-    $expected = hash_hmac('sha256', $user_agent, env('SESSION_SECRET'));
+    $ip = $_SERVER['REMOTE_ADDR'];
+    $expected = hash_hmac('sha256', $user_agent . $ip, env('SESSION_SECRET'));
 
     return hash_equals($_SESSION['browser_fingerprint'], $expected);
+}
+
+/**
+ * Régénère l'ID de session
+ * À utiliser après une élévation de privilèges
+ */
+function regenerateSession() {
+    session_regenerate_id(true);
+    $_SESSION['created'] = time();
+    generateBrowserFingerprint();
 } 

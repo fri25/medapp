@@ -44,11 +44,11 @@
                 <ul class="space-y-2">
                     <li class="flex items-start">
                         <i class="fas fa-map-marker-alt mt-1 mr-2 text-gray-400"></i>
-                        <span class="text-gray-400">123 Avenue de la Santé, 75001 Paris</span>
+                        <span class="text-gray-400">Benin, Cotonou</span>
                     </li>
                     <li class="flex items-center">
                         <i class="fas fa-phone-alt mr-2 text-gray-400"></i>
-                        <span class="text-gray-400">+33 1 23 45 67 89</span>
+                        <span class="text-gray-400">+229 01 57 86 69 59</span>
                     </li>
                     <li class="flex items-center">
                         <i class="fas fa-envelope mr-2 text-gray-400"></i>
