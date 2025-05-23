@@ -3,6 +3,7 @@ require_once '../controllers/Auth.php';
 require_once '../config/database.php';
 require_once '../models/Patient.php';
 require_once '../includes/session.php';
+require_once '../send_mail.php';
 
 // Définir le chemin racine pour les liens dans header et footer
 $root_path = '../';
@@ -22,7 +23,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $patient->datenais = $_POST['datenais'];
     $patient->email = $_POST['email'];
     $patient->contact = $_POST['contact'];
-    $patient->sexe = $_POST['sexe'];
+    $patient->setSexe($_POST['sexe']);
     $patient->password = $_POST['password'];
     
     // Vérifier si l'email existe déjà
@@ -31,11 +32,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } else {
         // Vérifier que les mots de passe correspondent
         if ($_POST['password'] === $_POST['confirm_password']) {
-            // Enregistrer le patient
-            if ($patient->register()) {
-                // Rediriger vers la page de connexion
-                header("Location: login.php?registered=success");
-                exit;
+            // Enregistrer le patient et récupérer le token
+            $token = $patient->register();
+            
+            if ($token) {
+                try {
+                    // Envoi de l'email de confirmation
+                    $mailer = new Mailer();
+                    $mailer->sendConfirmationEmail(
+                        $patient->email,
+                        $patient->prenom . ' ' . $patient->nom,
+                        $token
+                    );
+                    
+                    // Rediriger vers la page de connexion avec un message de succès
+                    header("Location: login.php?registered=success&email_sent=true");
+                    exit;
+                } catch (Exception $e) {
+                    // Si l'envoi de l'email échoue, on continue quand même avec l'inscription
+                    error_log("Erreur lors de l'envoi de l'email de confirmation: " . $e->getMessage());
+                    header("Location: login.php?registered=success&email_sent=false");
+                    exit;
+                }
             } else {
                 $message = "Une erreur s'est produite lors de l'inscription. Veuillez réessayer.";
             }

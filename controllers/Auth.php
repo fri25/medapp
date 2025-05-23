@@ -16,39 +16,55 @@ class Auth {
     
     // Méthode pour gérer l'authentification
     public function login($email, $password) {
-        $patient = new Patient($this->db);
-        $patient->email = $email;
+        // Fonction de log locale
+        $writeLog = function($message) {
+            $log_file = __DIR__ . '/../logs/debug.log';
+            $timestamp = date('Y-m-d H:i:s');
+            file_put_contents($log_file, "[$timestamp] $message\n", FILE_APPEND);
+        };
         
-        $medecin = new Medecin($this->db);
-        $medecin->email = $email;
+        $writeLog("Tentative de connexion pour l'email : " . $email);
         
-        $admin = new Admin($this->db);
-        $admin->email = $email;
+        // Vérifier d'abord le type de compte avec toutes les informations nécessaires
+        $query = "SELECT 'patient' as type, id, nom, prenom, password, verification_status 
+                 FROM patient WHERE email = ? 
+                 UNION ALL 
+                 SELECT 'medecin' as type, id, nom, prenom, password, verification_status 
+                 FROM medecin WHERE email = ? 
+                 UNION ALL 
+                 SELECT 'admin' as type, id, nom, prenom, password, 'verified' as verification_status 
+                 FROM admin WHERE email = ?";
         
-        // Vérifier si l'utilisateur existe dans l'une des tables
-        if($patient->emailExists()) {
-            // Vérifier le mot de passe
-            if(password_verify($password, $patient->password)) {
-                // Mot de passe correct, créer la session
-                $this->createSession($patient->id, $patient->nom, $patient->prenom, $patient->email, $patient->role);
-                return true;
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(1, $email);
+        $stmt->bindParam(2, $email);
+        $stmt->bindParam(3, $email);
+        $stmt->execute();
+        
+        if($stmt->rowCount() > 0) {
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            $writeLog("Type de compte trouvé : " . $row['type']);
+            $writeLog("Statut de vérification : " . $row['verification_status']);
+            
+            // Vérifier si le compte est vérifié
+            if($row['verification_status'] !== 'verified') {
+                $writeLog("Compte non vérifié - Type: " . $row['type']);
+                return false;
             }
-        } elseif($medecin->emailExists()) {
+            
             // Vérifier le mot de passe
-            if(password_verify($password, $medecin->password)) {
-                // Mot de passe correct, créer la session
-                $this->createSession($medecin->id, $medecin->nom, $medecin->prenom, $medecin->email, $medecin->role);
+            if(password_verify($password, $row['password'])) {
+                $writeLog("Connexion " . $row['type'] . " réussie");
+                $this->createSession($row['id'], $row['nom'], $row['prenom'], $email, $row['type']);
                 return true;
+            } else {
+                $writeLog("Mot de passe incorrect pour le compte " . $row['type']);
             }
-        } elseif($admin->emailExists()) {
-            // Vérifier le mot de passe
-            if(password_verify($password, $admin->password)) {
-                // Mot de passe correct, créer la session
-                $this->createSession($admin->id, $admin->nom, $admin->prenom, $admin->email, $admin->role);
-                return true;
-            }
+        } else {
+            $writeLog("Aucun compte trouvé avec cet email");
         }
         
+        $writeLog("Échec de la connexion");
         return false;
     }
     

@@ -13,6 +13,10 @@ require_once '../models/Patient.php';
 require_once '../models/Medecin.php';
 require_once '../includes/session.php';
 
+// Initialiser la connexion à la base de données
+$database = new Database();
+$db = $database->getConnection();
+
 // Définir le chemin racine pour les liens dans header et footer
 $root_path = '../';
 
@@ -44,7 +48,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 header("Location: medecin/dashboard.php");
                 break;
             case 'patient':
-                header("Location:   patient/dashboard.php");
+                header("Location: patient/dashboard.php");
                 break;
             default:
                 header("Location: index.php");
@@ -52,7 +56,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
         exit;
     } else {
-        $message = "Email ou mot de passe incorrect. Veuillez réessayer.";
+        // Vérifier si le compte existe mais n'est pas vérifié
+        $patient = new Patient($db);
+        $patient->email = $email;
+        
+        $medecin = new Medecin($db);
+        $medecin->email = $email;
+        
+        if ($patient->emailExists() && $patient->verification_status !== 'verified') {
+            $message = "Votre compte n'est pas encore vérifié. Veuillez vérifier votre email et cliquer sur le lien de confirmation.";
+        } elseif ($medecin->emailExists() && $medecin->verification_status !== 'verified') {
+            $message = "Votre compte n'est pas encore vérifié. Veuillez vérifier votre email et cliquer sur le lien de confirmation.";
+        } else {
+            $message = "Email ou mot de passe incorrect. Veuillez réessayer.";
+        }
     }
 }
 
@@ -371,4 +388,4 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
     </script>
 </body>
-</html> 
+</html>  

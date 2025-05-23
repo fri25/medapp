@@ -15,18 +15,18 @@ function redirectIfNotAuthorized($requiredRole) {
 
 function getDashboardUrl() {
     if (!isset($_SESSION['role'])) {
-        return '../../index.php';
+        return '/medapp/index.php';
     }
     
     switch ($_SESSION['role']) {
         case 'admin':
-            return '../admin/dashboard.php';
+            return '/medapp/views/admin/dashboard.php';
         case 'medecin':
-            return '../medecin/dashboard.php';
+            return '/medapp/views/medecin/dashboard.php';
         case 'patient':
-            return '../patient/dashboard.php';
+            return '/medapp/views/patient/dashboard.php';
         default:
-            return '../../index.php';
+            return '/medapp/index.php';
     }
 }
 ?> 

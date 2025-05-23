@@ -154,6 +154,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <a href="ordonnace.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
                     <i class="fas fa-prescription mr-3"></i>Mes Ordonnances
                 </a>
+                <a href="consultations.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
+                    <i class="fas fa-stethoscope mr-3"></i>Mes Consultations
+                </a>
                 <a href="listes_pharmacie.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
                     <i class="fas fa-pills mr-3"></i>Ma Pharmacie
                 </a>

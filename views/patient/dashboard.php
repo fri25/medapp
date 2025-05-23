@@ -43,8 +43,8 @@ $ordonnances = $stmt->fetch(PDO::FETCH_ASSOC);
 // Compter les messages non lus
 $stmt = db()->prepare("
     SELECT COUNT(*) as total
-    FROM message
-    WHERE id_destinataire = ? AND lu = 0
+    FROM messages
+    WHERE receiver_id = ? AND lu = 0
 ");
 $stmt->execute([$user_id]);
 $messages = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -99,11 +99,11 @@ $rappels = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Récupérer les derniers messages
 $stmt = db()->prepare("
-    SELECT m.id, m.sujet, m.contenu, m.created_at, med.nom as medecin_nom, med.prenom as medecin_prenom
-    FROM message m
-    JOIN medecin med ON m.id_expediteur = med.id
-    WHERE m.id_destinataire = ?
-    ORDER BY m.created_at DESC
+    SELECT m.id, m.contenu, m.date_envoi, med.nom as medecin_nom, med.prenom as medecin_prenom
+    FROM messages m
+    JOIN medecin med ON m.sender_id = med.id
+    WHERE m.receiver_id = ? AND m.sender_type = 'medecin'
+    ORDER BY m.date_envoi DESC
     LIMIT 1
 ");
 $stmt->execute([$user_id]);
@@ -182,6 +182,9 @@ $dernier_message = $stmt->fetch(PDO::FETCH_ASSOC);
                 </a>
                 <a href="ordonnace.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
                     <i class="fas fa-prescription mr-3"></i>Mes Ordonnances
+                </a>
+                <a href="consultations.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
+                    <i class="fas fa-stethoscope mr-3"></i>Mes Consultations
                 </a>
                 <a href="listes_pharmacie.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
                     <i class="fas fa-pills mr-3"></i>Ma Pharmacie
@@ -457,12 +460,12 @@ $dernier_message = $stmt->fetch(PDO::FETCH_ASSOC);
                                     </div>
                                     <div>
                                         <p class="font-medium text-[#1e40af]">Dr. <?php echo htmlspecialchars($dernier_message['medecin_prenom'] . ' ' . $dernier_message['medecin_nom']); ?></p>
-                                        <p class="text-sm text-[#3b82f6]"><?php echo htmlspecialchars($dernier_message['sujet']); ?></p>
+                                        <p class="text-sm text-[#3b82f6]"><?php echo htmlspecialchars($dernier_message['contenu']); ?></p>
                                     </div>
                                 </div>
                                 <span class="text-xs text-[#3b82f6]">
                                     <?php 
-                                    $date = new DateTime($dernier_message['created_at']);
+                                    $date = new DateTime($dernier_message['date_envoi']);
                                     $now = new DateTime();
                                     $diff = $date->diff($now);
                                     

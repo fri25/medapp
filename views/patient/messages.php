@@ -97,6 +97,15 @@ $selected_medecin = isset($_GET['medecin_id']) ? (int)$_GET['medecin_id'] : ($me
                     </li>
                 <?php endforeach; ?>
             </ul>
+            <a href="ordonnace.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
+                <i class="fas fa-prescription mr-3"></i>Mes Ordonnances
+            </a>
+            <a href="consultations.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
+                <i class="fas fa-stethoscope mr-3"></i>Mes Consultations
+            </a>
+            <a href="listes_pharmacie.php" class="nav-link block px-4 py-3 rounded-lg text-[#1e40af]">
+                <i class="fas fa-pills mr-3"></i>Listes de Pharmacie
+            </a>
         </aside>
         <!-- Zone de chat -->
         <main class="flex-1 flex flex-col">

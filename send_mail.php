@@ -48,6 +48,11 @@ class Mailer {
             // Activer le débogage en mode développement
             if (env('APP_ENV') === 'development') {
                 $this->mailer->SMTPDebug = SMTP::DEBUG_SERVER;
+                $this->mailer->Debugoutput = function($str, $level) {
+                    error_log("PHPMailer Debug: $str");
+                };
+            } else {
+                $this->mailer->SMTPDebug = SMTP::DEBUG_OFF;
             }
         } catch (Exception $e) {
             error_log("Erreur d'initialisation du mailer : " . $e->getMessage());
@@ -65,6 +70,16 @@ class Mailer {
      */
     public function sendConfirmationEmail($email, $nom, $token) {
         try {
+            // Fonction de log locale
+            $writeLog = function($message) {
+                $log_file = __DIR__ . '/../logs/debug.log';
+                $timestamp = date('Y-m-d H:i:s');
+                file_put_contents($log_file, "[$timestamp] $message\n", FILE_APPEND);
+            };
+            
+            $writeLog("Préparation de l'email de confirmation pour : " . $email);
+            $writeLog("Token reçu pour l'email : " . $token);
+            
             // Validation des entrées
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 throw new Exception("Adresse email invalide");
@@ -78,7 +93,8 @@ class Mailer {
             $this->mailer->clearAddresses();
             $this->mailer->addAddress($email, $nom);
 
-            $confirmation_link = env('APP_URL') . "/confirmation.php?token=" . urlencode($token);
+            $confirmation_link = "http://localhost/medapp/views/confirmation.php?token=" . urlencode($token);
+            $writeLog("Lien de confirmation généré : " . $confirmation_link);
             
             // Template HTML de l'email
             $html = $this->getEmailTemplate('confirmation', [
@@ -94,12 +110,11 @@ class Mailer {
             // Envoi de l'email
             $this->mailer->send();
             
-            // Journalisation du succès
-            error_log("Email de confirmation envoyé à : " . $email);
+            $writeLog("Email de confirmation envoyé avec succès");
             
             return true;
         } catch (Exception $e) {
-            error_log("Erreur lors de l'envoi de l'email de confirmation : " . $e->getMessage());
+            $writeLog("Erreur lors de l'envoi de l'email de confirmation : " . $e->getMessage());
             throw new Exception("Impossible d'envoyer l'email de confirmation");
         }
     }
@@ -172,28 +187,6 @@ class Mailer {
         include $template_path;
         return ob_get_clean();
     }
-}
-
-// Exemple d'utilisation
-try {
-    $mailer = new Mailer();
-    
-    // Pour l'envoi d'un email de confirmation
-    $mailer->sendConfirmationEmail(
-        'patient@example.com',
-        'John Doe',
-        'token_de_confirmation'
-    );
-    
-    // Pour l'envoi d'un email de réinitialisation
-    $mailer->sendPasswordResetEmail(
-        'patient@example.com',
-        'John Doe',
-        'token_de_reinitialisation'
-    );
-    
-} catch (Exception $e) {
-    echo "Erreur : " . $e->getMessage();
 }
 
 ?>
