@@ -1,0 +1,14 @@
+<!-- Variables d'environnement chargées manuellement --> 
+
+
+
+=== TABLE: patient ===
+ID: 1 | Email: melvineyemadje@gmail.com | Status: pending
+
+=== TABLE: medecin ===
+ID: 1 | Email: test2@gmail.com | Status: pending
+ID: 2 | Email: bake@gmail.com | Status: pending
+ID: 3 | Email: chao@gmail.com | Status: pending
+
+=== TABLE: admin ===
+
